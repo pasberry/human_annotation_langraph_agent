@@ -2,7 +2,28 @@
 
 A **LangGraph 1.0+** and **LangChain 1.0+** agent that makes evidence-based asset scoping decisions with human feedback integration. The agent determines if assets are in-scope or out-of-scope for compliance commitments (e.g., SOC 2, GDPR), learns from human corrections, and provides transparent, auditable decisions.
 
-## 🎯 Key Features
+## 🎯 The Problem
+
+Organizations must maintain compliance with various regulatory frameworks (SOC 2, GDPR, PCI DSS, HIPAA, etc.). A critical part of compliance is **scoping** - determining which assets (databases, APIs, systems) fall under which compliance commitments.
+
+**Challenges:**
+- **Manual scoping is time-consuming**: Security/compliance teams must review hundreds or thousands of assets
+- **Decisions lack transparency**: It's unclear why an asset was deemed in-scope or out-of-scope
+- **Knowledge is siloed**: Decisions aren't shared across the team, leading to inconsistencies
+- **No learning from corrections**: When someone corrects a scoping decision, that knowledge is lost
+- **Uncertainty is hidden**: Analysts make guesses instead of admitting they need more information
+
+## 💡 The Solution
+
+An AI agent that:
+
+1. **Makes Evidence-Based Decisions**: Every decision includes citations from compliance docs and references to similar past decisions
+2. **Learns from Human Feedback**: Thumbs up/down with corrections that improve future similar decisions
+3. **Admits Uncertainty**: Says "I don't have enough data" instead of guessing, asking clarifying questions
+4. **Never Blocks on Feedback**: Decisions are made immediately; feedback is collected async and used for future queries
+5. **Provides Full Auditability**: Complete telemetry and checkpointing show exactly how each decision was made
+
+## 🏆 Key Features
 
 - **LangGraph 1.0+ Architecture**: Type-safe state management with Pydantic models
 - **Evidence-Based Decisions**: Every decision includes citations, references, and reasoning
@@ -16,31 +37,130 @@ A **LangGraph 1.0+** and **LangChain 1.0+** agent that makes evidence-based asse
 
 ## 🏗️ Architecture
 
-```
-User Query (Asset + Commitment)
-    ↓
-[Parse Asset URI] → asset://type.descriptor.domain
-    ↓
-[RAG Retrieval] → Get relevant commitment documentation chunks
-    ↓
-[Feedback Retrieval] → Find similar past decisions (frequency-weighted)
-    ↓
-[Assess Confidence] → Determine if we have enough data
-    ↓
-[Build Prompt] → Construct evidence-rich prompt
-    ↓
-[LLM Call] → Generate structured decision with evidence
-    ↓
-[Save Decision] → Store in database with full telemetry
-    ↓
-Return to User (with expandable evidence)
+### High-Level Flow
 
-[ASYNC - Later]
-    ↓
-Human provides feedback (👍/👎 + reason + correction)
-    ↓
-Store feedback → Used in future similar queries
 ```
+┌─────────────────────────────────────────────────────────────┐
+│  User Input: Asset + Commitment                             │
+│  Example: asset://database.customer_data.production         │
+│           + "SOC 2 Type II - CC6.1"                         │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 1: Parse Asset URI                                    │
+│  Extract: type=database, descriptor=customer_data,          │
+│           domain=production                                 │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 2: RAG Retrieval (Commitment Documentation)          │
+│  • Embed query: "Asset X + Commitment Y scoping"           │
+│  • Find top-K similar chunks from commitment text           │
+│  • Retrieved: Legal requirements, scoping criteria          │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 3: Feedback Retrieval (Past Decisions)               │
+│  • Find similar past decisions via embedding search         │
+│  • Apply frequency weighting (3 similar = higher weight)    │
+│  • Apply recency boost (newer = higher weight)              │
+│  • Retrieved: "Team doesn't use Heroku, use AWS" etc.      │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 4: Assess Confidence                                 │
+│  Factors:                                                   │
+│  • RAG chunk relevance (0-0.4)                             │
+│  • Similar feedback quality & count (0-0.4)                │
+│  • Feedback agreement/conflict (0-0.2)                     │
+│  Score: 0.87 → "high" confidence                           │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+        ┌─────────────┴──────────────┐
+        │                            │
+        ▼                            ▼
+┌──────────────────┐     ┌────────────────────────┐
+│ Score < 0.5?     │     │ Score >= 0.5?          │
+│ INSUFFICIENT     │     │ PROCEED                │
+└──────┬───────────┘     └────────┬───────────────┘
+       │                          │
+       ▼                          ▼
+┌──────────────────┐     ┌────────────────────────┐
+│ Return:          │     │ STEP 5: Build Prompt   │
+│ - Missing info   │     │ Include:               │
+│ - Questions      │     │ • Commitment chunks    │
+│ - Partial        │     │ • Past decisions       │
+│   analysis       │     │ • Evidence tracking    │
+└──────┬───────────┘     └────────┬───────────────┘
+       │                          │
+       │                          ▼
+       │              ┌────────────────────────┐
+       │              │ STEP 6: LLM Call       │
+       │              │ Generate:              │
+       │              │ • Decision + evidence  │
+       │              │ • Commit references    │
+       │              │ • Similar decisions    │
+       │              └────────┬───────────────┘
+       │                       │
+       └───────────┬───────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────────────────────────┐
+│  STEP 7: Save Decision                                      │
+│  Store in DB: decision + evidence + telemetry + checkpoints │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Return to User                                             │
+│  • Decision (in-scope / out-of-scope / insufficient-data)   │
+│  • Evidence (expandable)                                    │
+│  • References to commitment docs                            │
+│  • Similar past decisions cited                             │
+└─────────────────────────────────────────────────────────────┘
+                      │
+                      │ [ASYNC - Later, no blocking]
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Human Provides Feedback                                    │
+│  👍 Correct: Reinforces this pattern                        │
+│  👎 Incorrect: Reason + Correction                          │
+│  Example: "Database doesn't contain PII" →                 │
+│           "Should be out-of-scope"                          │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Store Feedback                                             │
+│  • Compute embedding for future similarity search           │
+│  • Link to original decision                                │
+│  • Used in STEP 3 for next similar query                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Decision Types
+
+The agent produces three types of decisions:
+
+1. **in-scope**: Asset falls under the compliance commitment
+   - Example: Production database with customer PII → SOC 2 = IN-SCOPE
+   - Includes full evidence and reasoning
+
+2. **out-of-scope**: Asset doesn't fall under the commitment
+   - Example: Test environment with fake data → SOC 2 = OUT-OF-SCOPE
+   - Includes evidence for why it was excluded
+
+3. **insufficient-data**: Not enough information to decide confidently
+   - Example: Cache with unclear data types → INSUFFICIENT-DATA
+   - Provides:
+     - Missing information needed
+     - Clarifying questions
+     - Partial analysis of what was determined
+   - **Key**: Never guesses when uncertain
 
 ## 📦 Installation
 
@@ -244,19 +364,262 @@ See `config.py` for all configurable parameters:
 - **Feedback Settings**: Similarity threshold, top-k
 - **Confidence Thresholds**: High, medium, low, insufficient
 
-## 🧪 Testing
+## 🧪 Testing & Walkthrough
 
-**Test the agent:**
+### Initial Setup Verification
+
+After installation, verify the system is ready:
+
 ```bash
-# Make a decision
-python -m cli.main decide "asset://database.analytics.production" "SOC 2 Type II - CC6.1"
+# 1. Check sample data was loaded
+python -m cli.main list-commitments
 
-# Provide feedback
-python -m cli.main feedback <decision-id> --rating up --reason "Correct - analytics DB has customer data"
+# Expected output: Shows SOC 2 CC6.1 and GDPR Article 5
 
-# Make similar decision (should use feedback)
-python -m cli.main decide "asset://database.metrics.production" "SOC 2 Type II - CC6.1"
+# 2. Check LLM is configured
+# For Ollama (local):
+ollama list  # Should show llama3.1:8b or your configured model
+
+# For OpenAI:
+# Verify OPENAI_API_KEY is set in .env
 ```
+
+### Complete Walkthrough: Testing the Feedback Loop
+
+This walkthrough demonstrates the complete lifecycle: making decisions, providing feedback, and seeing the agent learn.
+
+#### Step 1: Make Your First Decision
+
+```bash
+python -m cli.main decide "asset://database.customer_data.production" "SOC 2 Type II - CC6.1"
+```
+
+**Expected Output:**
+- Decision: `in-scope` (high confidence)
+- Reasoning based on commitment documentation
+- No similar past decisions (this is the first!)
+- Session ID displayed (save this for checkpoint viewing)
+
+**Example:**
+```
+✅ IN-SCOPE
+Confidence: high (0.85)
+
+Reasoning:
+This database stores customer data in production, which falls under SOC 2 CC6.1
+requirements for data protection controls.
+
+📊 Evidence:
+  Commitment Analysis: SOC 2 CC6.1 explicitly covers systems storing customer data
+  Asset Characteristics:
+    • Production database (production domain)
+    • Contains customer data (descriptor: customer_data)
+
+Decision ID: abc-123-def
+Session ID (Thread ID): xyz-456-session
+💾 View checkpoints: cli checkpoint-history xyz-456-session
+```
+
+#### Step 2: View Decision Checkpoint History
+
+```bash
+python -m cli.main checkpoint-history xyz-456-session
+```
+
+**What You'll See:**
+- All 7 checkpoints from the workflow
+- State at each node (parse → RAG → feedback → confidence → prompt → LLM → save)
+- Confidence evolution through the process
+
+#### Step 3: Provide Feedback (Thumbs Up)
+
+```bash
+python -m cli.main feedback abc-123-def \
+  --rating up \
+  --reason "Correct - production database with customer PII should be in scope"
+```
+
+**Expected:**
+```
+👍 Feedback submitted successfully!
+Feedback ID: feedback-789-xyz
+```
+
+#### Step 4: Make a Similar Decision (Agent Should Learn)
+
+```bash
+python -m cli.main decide "asset://database.user_profiles.production" "SOC 2 Type II - CC6.1"
+```
+
+**Expected Output:**
+- Decision: `in-scope` (high confidence)
+- **NEW**: References your previous feedback!
+- Shows similar past decision with similarity score
+
+**Example:**
+```
+✅ IN-SCOPE
+Confidence: high (0.92)  ← Higher confidence due to past feedback!
+
+🔍 Similar Past Decisions:
+  • asset://database.customer_data.production → in-scope (similarity: 0.89)
+    Feedback from 2024-11-14: "Correct - production database with customer PII should be in scope"
+    How it influenced: Reinforces that production databases with customer data are in-scope
+```
+
+#### Step 5: Test Insufficient Data Scenario
+
+```bash
+python -m cli.main decide "asset://cache.session_store.temporary" "GDPR Article 5"
+```
+
+**Expected Output:**
+- Decision: `insufficient-data`
+- Lists missing information
+- Asks clarifying questions
+- Provides partial analysis
+
+**Example:**
+```
+⚠️ INSUFFICIENT DATA TO DECIDE
+Confidence: insufficient (0.35)
+
+Missing Information:
+  • What type of data does 'session_store' contain?
+  • Is this cache storing any personal identifiable information?
+  • What is the data retention period?
+
+Clarifying Questions:
+  • Does this cache store user identifiers or session data with PII?
+  • How long is data retained in this cache?
+
+Partial Analysis:
+The asset appears to be a temporary cache. If it stores user identifiers or
+personal data, it would be in-scope for GDPR.
+```
+
+#### Step 6: Provide Correcting Feedback
+
+```bash
+python -m cli.main feedback <decision-id> \
+  --rating down \
+  --reason "This cache only stores anonymous session IDs with no PII" \
+  --correction "Should be OUT-OF-SCOPE - cache contains only anonymous identifiers with no way to link to real users"
+```
+
+#### Step 7: Test Similar Asset (Agent Learns from Correction)
+
+```bash
+python -m cli.main decide "asset://cache.user_sessions.temporary" "GDPR Article 5"
+```
+
+**Expected:**
+- Agent now references your correction
+- More confident decision based on your feedback
+
+#### Step 8: View Statistics
+
+```bash
+python -m cli.main stats
+```
+
+**Shows:**
+- Total feedback count
+- Thumbs up/down ratio
+- Accuracy percentage
+
+#### Step 9: View All Decisions
+
+```bash
+python -m cli.main list-decisions --limit 10
+```
+
+**Shows:**
+- Table of recent decisions
+- Asset, commitment, decision, confidence
+- Decision IDs for further investigation
+
+### Testing with Streamlit UI
+
+```bash
+streamlit run ui/streamlit_app.py
+```
+
+**Walkthrough:**
+
+1. **Make Decision** page:
+   - Select asset and commitment
+   - Click "🚀 Analyze"
+   - View expandable evidence
+   - Provide feedback inline
+
+2. **View Decisions** page:
+   - Browse past decisions
+   - See decision details
+
+3. **Checkpoints** page:
+   - Enter a Session ID
+   - View checkpoint history (7 checkpoints per decision)
+   - Inspect state at each workflow step
+
+4. **Manage Commitments** page:
+   - View existing commitments
+   - Add new commitments with legal text
+
+5. **Statistics** page:
+   - Overall feedback metrics
+   - Per-commitment accuracy
+
+### Testing Edge Cases
+
+**Test 1: Conflicting Feedback**
+```bash
+# Same asset, different teams provide different feedback
+# Most recent feedback wins
+```
+
+**Test 2: Frequency Weighting**
+```bash
+# Provide similar feedback 3 times
+# Agent should heavily weight this pattern
+```
+
+**Test 3: No Feedback Available**
+```bash
+# New commitment with no past decisions
+# Agent relies solely on RAG from commitment docs
+```
+
+### Verifying Checkpointing Works
+
+```bash
+# 1. Make a decision
+python -m cli.main decide "asset://api.auth.production" "SOC 2 Type II - CC6.1"
+
+# 2. Note the Session ID from output
+
+# 3. View checkpoint history
+python -m cli.main checkpoint-history <session-id>
+
+# Should see 7 checkpoints:
+# - parse_asset
+# - retrieve_rag
+# - retrieve_feedback
+# - assess_confidence
+# - build_prompt
+# - llm_call
+# - save_decision
+```
+
+### Expected Test Results
+
+After running the complete walkthrough:
+
+1. **Database populated**: 4-5 decisions stored
+2. **Feedback loop working**: Agent cites past feedback
+3. **Checkpoints visible**: Can inspect each workflow step
+4. **Confidence assessment working**: Admits when data is insufficient
+5. **Evidence tracking**: All decisions include citations and references
 
 ## 📁 Project Structure
 
