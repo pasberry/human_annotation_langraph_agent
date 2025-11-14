@@ -31,7 +31,7 @@ def main():
     # Sidebar navigation
     page = st.sidebar.selectbox(
         "Navigation",
-        ["Make Decision", "View Decisions", "Manage Commitments", "Statistics"]
+        ["Make Decision", "View Decisions", "Manage Commitments", "Statistics", "Checkpoints"]
     )
 
     if page == "Make Decision":
@@ -42,6 +42,8 @@ def main():
         manage_commitments_page()
     elif page == "Statistics":
         statistics_page()
+    elif page == "Checkpoints":
+        checkpoints_page()
 
 
 def make_decision_page():
@@ -370,6 +372,125 @@ def statistics_page():
                 col1.metric("👍 Thumbs Up", commitment_stats["thumbs_up"])
                 col2.metric("👎 Thumbs Down", commitment_stats["thumbs_down"])
                 col3.metric("Accuracy", f"{commitment_stats['accuracy']:.1%}")
+
+
+def checkpoints_page():
+    """Page for viewing decision checkpoints."""
+    st.header("💾 Decision Checkpoints")
+    st.markdown("View checkpoint history for decision threads (LangGraph 1.0+ feature)")
+
+    # Input thread ID
+    thread_id = st.text_input(
+        "Thread ID / Session ID",
+        placeholder="Enter thread ID from a decision...",
+        help="Get this from the decision output or Session ID field"
+    )
+
+    if not thread_id:
+        st.info("Enter a thread ID to view its checkpoint history")
+        return
+
+    # Tabs for different views
+    tab1, tab2 = st.tabs(["Checkpoint History", "Current State"])
+
+    with tab1:
+        st.subheader("Checkpoint History")
+
+        try:
+            checkpoints = agent.get_checkpoint_history(thread_id)
+
+            if not checkpoints:
+                st.warning("No checkpoints found for this thread")
+                return
+
+            st.success(f"Found {len(checkpoints)} checkpoints")
+
+            # Display each checkpoint
+            for idx, checkpoint in enumerate(checkpoints):
+                values = checkpoint.get("values", {})
+                next_nodes = checkpoint.get("next", [])
+
+                with st.expander(f"Checkpoint {idx + 1}", expanded=(idx == 0)):
+                    if next_nodes:
+                        st.write(f"**Next nodes:** {', '.join(next_nodes)}")
+
+                    # Show state information
+                    if values:
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            if "asset" in values and values["asset"]:
+                                asset = values["asset"]
+                                st.write(f"**Asset URI:** {asset.get('raw_uri', 'N/A')}")
+                                st.write(f"**Type:** {asset.get('asset_type', 'N/A')}")
+                                st.write(f"**Domain:** {asset.get('asset_domain', 'N/A')}")
+
+                        with col2:
+                            if "commitment_name" in values and values["commitment_name"]:
+                                st.write(f"**Commitment:** {values['commitment_name']}")
+
+                            if "confidence" in values and values["confidence"]:
+                                conf = values["confidence"]
+                                st.write(f"**Confidence:** {conf.get('level', 'N/A')} ({conf.get('score', 0):.2f})")
+
+                            if "response" in values and values["response"]:
+                                resp = values["response"]
+                                st.write(f"**Decision:** {resp.get('decision', 'N/A')}")
+
+                        # Show telemetry if available
+                        if "telemetry_data" in values and values["telemetry_data"]:
+                            with st.expander("View Telemetry", expanded=False):
+                                st.json(values["telemetry_data"])
+
+        except Exception as e:
+            st.error(f"Error loading checkpoints: {str(e)}")
+
+    with tab2:
+        st.subheader("Current State")
+
+        try:
+            state = agent.get_current_state(thread_id)
+
+            if not state:
+                st.warning("No state found for this thread")
+                return
+
+            # Display state info
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.write(f"**Asset URI:** {state.asset_uri}")
+                if state.asset:
+                    st.write(f"**Type:** {state.asset.asset_type}")
+                    st.write(f"**Descriptor:** {state.asset.asset_descriptor}")
+                    st.write(f"**Domain:** {state.asset.asset_domain}")
+
+            with col2:
+                st.write(f"**Commitment:** {state.commitment_name or state.commitment_id}")
+                st.write(f"**Session ID:** {state.session_id}")
+
+            st.markdown("---")
+
+            if state.response:
+                st.subheader("Decision")
+
+                if state.response.decision == "insufficient-data":
+                    st.warning("⚠️ INSUFFICIENT DATA TO DECIDE")
+                elif state.response.decision == "in-scope":
+                    st.success("✅ IN-SCOPE")
+                else:
+                    st.info("❌ OUT-OF-SCOPE")
+
+                st.metric("Confidence", f"{state.response.confidence_level} ({state.response.confidence_score:.2f})")
+                st.write(f"**Reasoning:** {state.response.reasoning}")
+
+            if state.errors:
+                st.error("**Errors:**")
+                for error in state.errors:
+                    st.write(f"- {error}")
+
+        except Exception as e:
+            st.error(f"Error loading current state: {str(e)}")
 
 
 if __name__ == "__main__":

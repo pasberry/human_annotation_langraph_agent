@@ -134,6 +134,16 @@ python -m cli.main add-commitment "PCI DSS 3.2.1" path/to/pci_dss.txt --domain s
 python -m cli.main stats
 ```
 
+**View checkpoint history (LangGraph 1.0+ feature):**
+```bash
+python -m cli.main checkpoint-history <thread-id>
+```
+
+**View current checkpoint state:**
+```bash
+python -m cli.main checkpoint-state <thread-id>
+```
+
 ### Streamlit UI
 
 ```bash
@@ -337,20 +347,58 @@ This project leverages LangGraph 1.0+ and LangChain 1.0+ capabilities:
 - Automatic state merging and validation
 - Immutable state updates for predictability
 
+**Checkpointing** (ACTIVE):
+- Every decision is saved at each step of the workflow
+- View complete checkpoint history for any decision thread
+- See state changes as the agent progresses through nodes
+- Debug by inspecting state at any point in the process
+- Uses MemorySaver (can upgrade to SqliteSaver for persistence)
+
 **Advanced Features** (available for extension):
-- **Checkpointing**: Save and resume workflow state
 - **Interrupts**: Pause for human approval before continuing
 - **Streaming**: Real-time updates as the graph executes
-- **Persistence**: Store conversation history across sessions
+- **Persistent Checkpointing**: Upgrade to SqliteSaver or PostgresSaver
 
 **LangChain 1.0+ Integration**:
 - Structured outputs from LLMs (JSON mode)
 - Better error handling and retries
 - Improved streaming and async support
 
+### 7. Using Checkpoints
+
+Every decision creates a checkpoint at each workflow step. View checkpoints using:
+
+**CLI**:
+```bash
+# View all checkpoints for a decision
+python -m cli.main checkpoint-history <session-id>
+
+# View current state
+python -m cli.main checkpoint-state <session-id>
+```
+
+**Streamlit UI**:
+- Navigate to "Checkpoints" page
+- Enter a Session ID/Thread ID
+- View checkpoint history and current state
+
+**What Checkpoints Show**:
+- State at each workflow node (parse, RAG, feedback, confidence, LLM, save)
+- Asset and commitment information
+- Confidence assessment at each step
+- Telemetry data
+- Next nodes to execute
+
+**Use Cases**:
+- Debug why a decision was made
+- Understand how confidence changed through the workflow
+- See what RAG chunks and feedback were retrieved
+- Audit the decision-making process
+
 ## 🔮 Future Enhancements
 
-- [ ] LangGraph 1.0+ checkpointing for state persistence across sessions
+- [x] LangGraph 1.0+ checkpointing with MemorySaver (DONE)
+- [ ] Upgrade to SqliteSaver or PostgresSaver for persistent checkpoints
 - [ ] Interrupt points for human approval before final decisions
 - [ ] Streaming responses for real-time UI updates
 - [ ] Multi-user conflict resolution

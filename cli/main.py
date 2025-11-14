@@ -127,7 +127,8 @@ def decide(asset_uri: str, commitment: str):
 
     # Decision ID for feedback
     console.print(f"[dim]Decision ID: {result.decision.id}[/dim]")
-    console.print(f"[dim]Session ID: {result.session_id}[/dim]\n")
+    console.print(f"[dim]Session ID (Thread ID): {result.session_id}[/dim]")
+    console.print(f"[dim]💾 View checkpoints: cli checkpoint-history {result.session_id}[/dim]\n")
 
 
 @cli.command()
@@ -284,6 +285,101 @@ def stats(commitment: str | None):
         title="Feedback Statistics",
         style="blue"
     ))
+
+
+@cli.command()
+@click.argument("thread_id")
+def checkpoint_history(thread_id: str):
+    """
+    Show checkpoint history for a decision thread.
+
+    Displays all checkpoints saved during the decision-making process.
+
+    Example:
+        cli checkpoint-history abc-123-session-id
+    """
+    console.print(f"\n[bold]Checkpoint History for Thread:[/bold] {thread_id}\n")
+
+    try:
+        checkpoints = agent.get_checkpoint_history(thread_id)
+
+        if not checkpoints:
+            console.print("[yellow]No checkpoints found for this thread[/yellow]")
+            return
+
+        console.print(f"Found {len(checkpoints)} checkpoints:\n")
+
+        for idx, checkpoint in enumerate(checkpoints):
+            values = checkpoint.get("values", {})
+            next_nodes = checkpoint.get("next", [])
+
+            console.print(f"[bold cyan]Checkpoint {idx + 1}[/bold cyan]")
+
+            if next_nodes:
+                console.print(f"  [dim]Next nodes:[/dim] {', '.join(next_nodes)}")
+
+            # Show key state information
+            if values:
+                state_info = []
+                if "asset" in values and values["asset"]:
+                    state_info.append(f"Asset: {values['asset'].get('raw_uri', 'N/A')}")
+                if "commitment_name" in values and values["commitment_name"]:
+                    state_info.append(f"Commitment: {values['commitment_name']}")
+                if "confidence" in values and values["confidence"]:
+                    conf = values["confidence"]
+                    state_info.append(f"Confidence: {conf.get('level', 'N/A')} ({conf.get('score', 0):.2f})")
+                if "response" in values and values["response"]:
+                    resp = values["response"]
+                    state_info.append(f"Decision: {resp.get('decision', 'N/A')}")
+
+                for info in state_info:
+                    console.print(f"  {info}")
+
+            console.print()
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+
+
+@cli.command()
+@click.argument("thread_id")
+def checkpoint_state(thread_id: str):
+    """
+    Show current checkpoint state for a thread.
+
+    Example:
+        cli checkpoint-state abc-123-session-id
+    """
+    console.print(f"\n[bold]Current State for Thread:[/bold] {thread_id}\n")
+
+    try:
+        state = agent.get_current_state(thread_id)
+
+        if not state:
+            console.print("[yellow]No state found for this thread[/yellow]")
+            return
+
+        # Display state info
+        console.print(Panel(
+            f"[bold]Asset:[/bold] {state.asset_uri}\n"
+            f"[bold]Commitment:[/bold] {state.commitment_name or state.commitment_id}\n"
+            f"[bold]Session ID:[/bold] {state.session_id}",
+            title="Thread State",
+            style="cyan"
+        ))
+
+        if state.response:
+            console.print(f"\n[bold]Decision:[/bold] {state.response.decision}")
+            console.print(f"[bold]Confidence:[/bold] {state.response.confidence_level} ({state.response.confidence_score:.2f})")
+            console.print(f"\n[bold]Reasoning:[/bold]\n{state.response.reasoning}")
+
+        if state.errors:
+            console.print("\n[bold red]Errors:[/bold red]")
+            for error in state.errors:
+                console.print(f"  - {error}")
+
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
 
 
 if __name__ == "__main__":

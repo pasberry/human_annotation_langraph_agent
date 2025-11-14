@@ -1,9 +1,11 @@
 """LangGraph workflow definition for evidencing agent.
 
-LangGraph 1.0+ and LangChain 1.0+ compatible implementation.
+LangGraph 1.0+ and LangChain 1.0+ compatible implementation with checkpointing.
 """
 import time
+from typing import Optional
 
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
 
 from agent.nodes.assess_confidence import assess_confidence_node
@@ -62,15 +64,14 @@ def create_evidencing_graph():
     workflow.add_edge("llm_call", "save_decision")
     workflow.add_edge("save_decision", END)
 
-    # Compile graph (LangGraph 1.0+ supports advanced features like:
-    # - checkpointing for state persistence
-    # - interrupts for human-in-the-loop
-    # - streaming for real-time updates)
-    return workflow.compile()
+    # Compile graph with checkpointing (LangGraph 1.0+ feature)
+    # MemorySaver stores checkpoints in memory (for production, use SqliteSaver or PostgresSaver)
+    checkpointer = MemorySaver()
+    return workflow.compile(checkpointer=checkpointer)
 
 
 class EvidencingAgent:
-    """Evidencing agent for scoping decisions."""
+    """Evidencing agent for scoping decisions with checkpointing support."""
 
     def __init__(self):
         """Initialize the agent with compiled graph."""
@@ -80,7 +81,8 @@ class EvidencingAgent:
         self,
         asset_uri: str,
         commitment_id: str,
-        session_id: str | None = None
+        session_id: str | None = None,
+        thread_id: str | None = None
     ) -> AgentState:
         """
         Run the evidencing agent to make a scoping decision.
@@ -89,6 +91,7 @@ class EvidencingAgent:
             asset_uri: Asset URI in format asset://type.descriptor.domain
             commitment_id: Commitment ID or name
             session_id: Optional session ID for tracking
+            thread_id: Optional thread ID for checkpointing (defaults to session_id)
 
         Returns:
             Final agent state with decision
@@ -101,10 +104,62 @@ class EvidencingAgent:
             start_time=time.time()
         )
 
-        # Run the graph
-        final_state = self.graph.invoke(initial_state)
+        # Use thread_id for checkpoint tracking (defaults to session_id)
+        config = {"configurable": {"thread_id": thread_id or session_id or initial_state.session_id}}
+
+        # Run the graph with checkpointing
+        final_state = self.graph.invoke(initial_state, config=config)
 
         return final_state
+
+    def get_checkpoint_history(self, thread_id: str) -> list[dict]:
+        """
+        Get checkpoint history for a thread.
+
+        Args:
+            thread_id: Thread ID to get history for
+
+        Returns:
+            List of checkpoint states
+        """
+        config = {"configurable": {"thread_id": thread_id}}
+        checkpoints = []
+
+        try:
+            # Get checkpoint history from the graph
+            for state in self.graph.get_state_history(config):
+                checkpoints.append({
+                    "checkpoint_id": state.config.get("configurable", {}).get("checkpoint_id"),
+                    "values": state.values,
+                    "next": state.next,
+                    "metadata": state.metadata,
+                    "created_at": state.created_at if hasattr(state, "created_at") else None
+                })
+        except Exception as e:
+            print(f"Error getting checkpoint history: {e}")
+
+        return checkpoints
+
+    def get_current_state(self, thread_id: str) -> Optional[AgentState]:
+        """
+        Get the current state for a thread.
+
+        Args:
+            thread_id: Thread ID to get state for
+
+        Returns:
+            Current state or None if not found
+        """
+        config = {"configurable": {"thread_id": thread_id}}
+
+        try:
+            state = self.graph.get_state(config)
+            if state and state.values:
+                return AgentState(**state.values)
+        except Exception as e:
+            print(f"Error getting current state: {e}")
+
+        return None
 
 
 # Create global agent instance
