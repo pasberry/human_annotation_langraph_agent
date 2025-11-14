@@ -1,18 +1,18 @@
-"""Node for retrieving relevant past feedback."""
+"""Node for retrieving relevant past feedback using vector stores."""
 import time
-from collections import defaultdict
-from datetime import datetime
 
 from config import settings
-from storage import db, embedding_service
-from storage.schemas import AgentState, DecisionFeedback, FeedbackContext
+from feedback.processor import feedback_processor
+from storage import db
+from storage.schemas import AgentState, FeedbackContext
 
 
 def retrieve_feedback_node(state: AgentState) -> AgentState:
     """
-    Retrieve similar past decisions and feedback.
+    Retrieve similar past decisions and feedback using vector search.
 
-    Implements frequency weighting and recency boost.
+    Uses the feedback processor to search the vector store for similar
+    feedback, applying frequency weighting and recency boost.
 
     Args:
         state: Current agent state
@@ -23,10 +23,10 @@ def retrieve_feedback_node(state: AgentState) -> AgentState:
     start = time.time()
 
     try:
-        # Get all feedback from database
-        all_feedback = db.get_all_feedback()
+        # Count total feedback
+        all_feedback_count = len(db.list_feedback(limit=10000))
 
-        if not all_feedback:
+        if all_feedback_count == 0:
             state.feedback_context = FeedbackContext(
                 total_feedback_count=0,
                 retrieved_count=0,
@@ -40,95 +40,66 @@ def retrieve_feedback_node(state: AgentState) -> AgentState:
             }
             return state
 
-        # Extract embeddings
-        feedback_embeddings = [f.query_embedding for f in all_feedback]
-
-        # Find similar feedback
-        similar_indices = embedding_service.find_most_similar(
+        # Use feedback processor to retrieve similar feedback
+        # (it handles vector search, frequency weighting, and sorting)
+        similar_feedback_dicts = feedback_processor.retrieve_similar_feedback(
             query_embedding=state.query_embedding,
-            candidate_embeddings=feedback_embeddings,
-            top_k=settings.feedback_top_k * 2,  # Get more for clustering
+            commitment_id=state.commitment_id if hasattr(state, 'commitment_id') else None,
+            top_k=settings.feedback_top_k,
             threshold=settings.similarity_threshold
         )
 
-        if not similar_indices:
+        if not similar_feedback_dicts:
             state.feedback_context = FeedbackContext(
-                total_feedback_count=len(all_feedback),
+                total_feedback_count=all_feedback_count,
                 retrieved_count=0,
                 avg_similarity=0.0,
                 frequency_clusters=0
             )
             state.telemetry_data["feedback_retrieval"] = {
-                "total_feedback_count": len(all_feedback),
+                "total_feedback_count": all_feedback_count,
                 "retrieved_count": 0,
                 "time_ms": (time.time() - start) * 1000
             }
             return state
 
-        # Get feedback entries with similarity scores
-        similar_feedback = [
-            (all_feedback[idx], score)
-            for idx, score in similar_indices
-        ]
+        # Calculate average similarity
+        avg_similarity = sum(fb["similarity"] for fb in similar_feedback_dicts) / len(similar_feedback_dicts)
 
-        # Apply frequency weighting
-        # Group similar feedback by commitment and decision type
-        clusters = defaultdict(list)
-        for feedback, score in similar_feedback:
-            key = (feedback.commitment_id, feedback.agent_decision)
-            clusters[key].append((feedback, score))
-
-        # Calculate weighted scores
-        weighted_feedback = []
-        for cluster_key, cluster_items in clusters.items():
-            cluster_size = len(cluster_items)
-            for feedback, base_score in cluster_items:
-                # Frequency boost: more similar feedback = higher weight
-                frequency_boost = (cluster_size - 1) * settings.frequency_boost_factor
-
-                # Recency boost: newer feedback gets slight boost
-                days_old = (datetime.utcnow() - feedback.created_at).days
-                recency_boost = max(0, settings.recency_weight * (1 - days_old / 365))
-
-                final_score = base_score + frequency_boost + recency_boost
-                weighted_feedback.append((feedback, base_score, final_score, cluster_size))
-
-        # Sort by final weighted score
-        weighted_feedback.sort(key=lambda x: x[2], reverse=True)
-
-        # Take top-k after weighting
-        top_feedback = weighted_feedback[:settings.feedback_top_k]
-
-        # Store in state
-        state.similar_feedback = [item[0] for item in top_feedback]
-
-        # Calculate context
-        avg_similarity = sum(item[1] for item in top_feedback) / len(top_feedback) if top_feedback else 0.0
-
-        state.feedback_context = FeedbackContext(
-            total_feedback_count=len(all_feedback),
-            retrieved_count=len(top_feedback),
-            avg_similarity=avg_similarity,
-            frequency_clusters=len(clusters)
+        # Count unique clusters (commitment_id, decision pairs)
+        unique_clusters = set(
+            (fb["commitment_id"], fb["decision"])
+            for fb in similar_feedback_dicts
         )
+
+        # Store feedback context
+        state.feedback_context = FeedbackContext(
+            total_feedback_count=all_feedback_count,
+            retrieved_count=len(similar_feedback_dicts),
+            avg_similarity=avg_similarity,
+            frequency_clusters=len(unique_clusters)
+        )
+
+        # Store similar feedback for prompt building
+        # Convert dicts back to simplified format for prompts
+        state.similar_feedback = similar_feedback_dicts
 
         # Track telemetry
         state.telemetry_data["feedback_retrieval"] = {
-            "total_feedback_count": len(all_feedback),
-            "candidates_after_threshold": len(similar_feedback),
-            "retrieved_count": len(top_feedback),
-            "avg_base_similarity": avg_similarity,
-            "frequency_clusters": len(clusters),
+            "total_feedback_count": all_feedback_count,
+            "retrieved_count": len(similar_feedback_dicts),
+            "avg_similarity": avg_similarity,
+            "frequency_clusters": len(unique_clusters),
             "top_matches": [
                 {
-                    "feedback_id": item[0].id,
-                    "base_similarity": item[1],
-                    "final_score": item[2],
-                    "cluster_size": item[3],
-                    "rating": item[0].rating,
-                    "decision": item[0].agent_decision
+                    "feedback_id": fb["feedback_id"],
+                    "similarity": fb["similarity"],
+                    "frequency_weight": fb.get("frequency_weight", 1.0),
+                    "cluster_size": fb.get("cluster_size", 1),
+                    "rating": fb["rating"],
+                    "decision": fb["decision"]
                 }
-                for item in top_feedback
+                for fb in similar_feedback_dicts[:5]  # Top 5 for telemetry
             ],
             "time_ms": (time.time() - start) * 1000
         }

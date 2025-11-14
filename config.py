@@ -49,6 +49,40 @@ class Settings(BaseSettings):
         description="Dimension of embeddings (384 for all-MiniLM-L6-v2)"
     )
 
+    # Vector Store Configuration
+    vector_store_type: Literal["in_memory", "chroma", "pinecone"] = Field(
+        default="in_memory",
+        description="Type of vector store to use"
+    )
+
+    # ChromaDB Configuration (when vector_store_type='chroma')
+    chroma_collection_name: str = Field(
+        default="evidencing_agent",
+        description="ChromaDB collection name"
+    )
+    chroma_persist_directory: str | None = Field(
+        default="data/chroma",
+        description="ChromaDB persistence directory (None for in-memory)"
+    )
+
+    # Pinecone Configuration (when vector_store_type='pinecone')
+    pinecone_api_key: str | None = Field(
+        default=None,
+        description="Pinecone API key"
+    )
+    pinecone_index_name: str = Field(
+        default="evidencing-agent",
+        description="Pinecone index name"
+    )
+    pinecone_environment: str | None = Field(
+        default=None,
+        description="Pinecone environment (e.g., 'us-west1-gcp')"
+    )
+    pinecone_namespace: str = Field(
+        default="default",
+        description="Pinecone namespace"
+    )
+
     # Database Configuration
     database_path: Path = Field(
         default=Path("data/evidencing.db"),
