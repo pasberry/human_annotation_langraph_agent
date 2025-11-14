@@ -17,8 +17,9 @@ sqlite-utils>=3.0.0
 sentence-transformers>=2.0.0
 numpy>=1.24.0
 
-# Vector similarity
-faiss-cpu>=1.7.4
+# Vector stores (optional - install based on VECTOR_STORE_TYPE)
+# For ChromaDB: pip install chromadb>=0.4.0
+# For Pinecone: pip install pinecone-client>=3.0.0
 
 # CLI
 click>=8.0.0
