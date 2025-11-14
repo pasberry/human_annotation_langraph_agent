@@ -1,0 +1,60 @@
+GDPR Article 5: Principles Relating to Processing of Personal Data
+
+Article 5 of the General Data Protection Regulation (GDPR) establishes the fundamental principles for processing personal data. Organizations must ensure that personal data is:
+
+1. Lawfulness, Fairness, and Transparency
+Personal data must be processed lawfully, fairly, and in a transparent manner in relation to the data subject. Data subjects must be informed about data collection and processing activities.
+
+2. Purpose Limitation
+Personal data must be collected for specified, explicit, and legitimate purposes and not further processed in a manner incompatible with those purposes.
+
+3. Data Minimization
+Personal data collected must be adequate, relevant, and limited to what is necessary in relation to the purposes for which they are processed. Organizations should not collect more data than needed.
+
+4. Accuracy
+Personal data must be accurate and, where necessary, kept up to date. Inaccurate data must be erased or rectified without delay.
+
+5. Storage Limitation
+Personal data must be kept in a form which permits identification of data subjects for no longer than is necessary for the purposes for which the data is processed.
+
+6. Integrity and Confidentiality
+Personal data must be processed in a manner that ensures appropriate security, including protection against unauthorized or unlawful processing and against accidental loss, destruction, or damage.
+
+7. Accountability
+The data controller is responsible for and must be able to demonstrate compliance with all of the above principles.
+
+Types of Personal Data Covered:
+- Names, email addresses, phone numbers
+- Identification numbers (e.g., social security numbers, passport numbers)
+- Location data
+- IP addresses and cookie identifiers
+- Biometric data
+- Health and medical information
+- Racial or ethnic origin
+- Political opinions
+- Religious or philosophical beliefs
+- Trade union membership
+- Genetic data
+- Sexual orientation
+
+Scoping Considerations:
+
+Assets that fall IN-SCOPE for GDPR Article 5 include:
+- Databases storing customer personal information (names, emails, addresses, phone numbers)
+- CRM systems containing customer or prospect data
+- HR systems with employee personal data
+- Marketing platforms processing user data for campaigns
+- Analytics systems that collect and process user behavioral data
+- Systems storing health information, financial data, or other sensitive personal data
+- Customer support systems containing communication history and personal details
+- User authentication systems storing identity information
+- Payment processing systems containing cardholder data
+
+Assets that fall OUT-OF-SCOPE for GDPR Article 5 include:
+- Systems containing only anonymized or aggregated data with no possibility of re-identification
+- Internal systems containing only non-personal business data (e.g., inventory, product catalogs)
+- Development or test environments using synthetic/fake data with no real personal information
+- Systems processing data of deceased individuals (unless required by member state law)
+- Systems used solely for personal or household activities
+- Public datasets with no personal information
+- Systems containing only business contact information used for B2B purposes (limited scope)
