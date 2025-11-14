@@ -1,6 +1,8 @@
-"""LangGraph workflow definition for evidencing agent."""
+"""LangGraph workflow definition for evidencing agent.
+
+LangGraph 1.0+ and LangChain 1.0+ compatible implementation.
+"""
 import time
-from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -19,19 +21,25 @@ def create_evidencing_graph():
     """
     Create the LangGraph workflow for evidencing decisions.
 
+    LangGraph 1.0+ features used:
+    - Pydantic models for type-safe state management (best practice)
+    - Automatic state merging and validation
+    - Support for checkpointing and persistence (via langgraph-checkpoint)
+    - Improved error handling and debugging
+
     Workflow:
     1. Parse asset URI
     2. Retrieve commitment documentation (RAG)
     3. Retrieve similar past feedback
     4. Assess confidence
     5. Build prompt with evidence
-    6. Call LLM for decision
+    6. Call LLM for decision (LangChain 1.0+)
     7. Save decision to database
 
     Returns:
         Compiled LangGraph workflow
     """
-    # Create workflow
+    # Create workflow with Pydantic state model (LangGraph 1.0+ best practice)
     workflow = StateGraph(AgentState)
 
     # Add nodes
@@ -54,7 +62,10 @@ def create_evidencing_graph():
     workflow.add_edge("llm_call", "save_decision")
     workflow.add_edge("save_decision", END)
 
-    # Compile graph
+    # Compile graph (LangGraph 1.0+ supports advanced features like:
+    # - checkpointing for state persistence
+    # - interrupts for human-in-the-loop
+    # - streaming for real-time updates)
     return workflow.compile()
 
 

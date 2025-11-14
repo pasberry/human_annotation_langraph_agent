@@ -1,9 +1,10 @@
 # 🔍 Evidencing Agent - Human-in-the-Loop Asset Scoping
 
-A LangGraph-based agent that makes evidence-based asset scoping decisions with human feedback integration. The agent determines if assets are in-scope or out-of-scope for compliance commitments (e.g., SOC 2, GDPR), learns from human corrections, and provides transparent, auditable decisions.
+A **LangGraph 1.0+** and **LangChain 1.0+** agent that makes evidence-based asset scoping decisions with human feedback integration. The agent determines if assets are in-scope or out-of-scope for compliance commitments (e.g., SOC 2, GDPR), learns from human corrections, and provides transparent, auditable decisions.
 
 ## 🎯 Key Features
 
+- **LangGraph 1.0+ Architecture**: Type-safe state management with Pydantic models
 - **Evidence-Based Decisions**: Every decision includes citations, references, and reasoning
 - **Human-in-the-Loop Feedback**: Thumbs up/down feedback with corrections that improve future decisions
 - **RAG-Powered**: Retrieves relevant commitment documentation to inform decisions
@@ -46,6 +47,7 @@ Store feedback → Used in future similar queries
 ### Prerequisites
 
 - Python 3.10+
+- LangGraph 1.0+ and LangChain 1.0+ (installed via requirements.txt)
 - Ollama (for local LLM) or OpenAI API key
 
 ### Setup
@@ -322,8 +324,35 @@ Every decision includes:
 - Decision rationale
 - What was considered and rejected
 
+### 6. LangGraph 1.0+ Features
+This project leverages LangGraph 1.0+ and LangChain 1.0+ capabilities:
+
+**Type Safety with Pydantic**:
+- State is defined using Pydantic models (`AgentState`)
+- Automatic validation and serialization
+- Better IDE support and error catching
+
+**State Management**:
+- Nodes can return full state or partial dict updates
+- Automatic state merging and validation
+- Immutable state updates for predictability
+
+**Advanced Features** (available for extension):
+- **Checkpointing**: Save and resume workflow state
+- **Interrupts**: Pause for human approval before continuing
+- **Streaming**: Real-time updates as the graph executes
+- **Persistence**: Store conversation history across sessions
+
+**LangChain 1.0+ Integration**:
+- Structured outputs from LLMs (JSON mode)
+- Better error handling and retries
+- Improved streaming and async support
+
 ## 🔮 Future Enhancements
 
+- [ ] LangGraph 1.0+ checkpointing for state persistence across sessions
+- [ ] Interrupt points for human approval before final decisions
+- [ ] Streaming responses for real-time UI updates
 - [ ] Multi-user conflict resolution
 - [ ] Feedback approval workflow
 - [ ] Advanced clustering algorithms
