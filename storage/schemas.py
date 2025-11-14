@@ -1,6 +1,6 @@
 """Pydantic models for data validation and serialization."""
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -104,7 +104,7 @@ class ConfidenceAssessment(BaseModel):
     level: Literal["high", "medium", "low", "insufficient"]
     score: float = Field(..., ge=0.0, le=1.0)
 
-    factors: dict[str, any] = Field(
+    factors: dict[str, Any] = Field(
         default_factory=dict,
         description="Factors contributing to confidence"
     )
@@ -159,12 +159,12 @@ class Telemetry(BaseModel):
     session_id: str
     timestamp: datetime
 
-    query: dict[str, any]
-    rag_retrieval: dict[str, any] | None = None
-    feedback_retrieval: dict[str, any] | None = None
-    confidence_assessment: dict[str, any] | None = None
-    prompt_construction: dict[str, any] | None = None
-    llm_call: dict[str, any] | None = None
+    query: dict[str, Any]
+    rag_retrieval: dict[str, Any] | None = None
+    feedback_retrieval: dict[str, Any] | None = None
+    confidence_assessment: dict[str, Any] | None = None
+    prompt_construction: dict[str, Any] | None = None
+    llm_call: dict[str, Any] | None = None
 
     total_latency_ms: float
     errors: list[str] = Field(default_factory=list)
@@ -281,7 +281,7 @@ class AgentState(BaseModel):
     decision: ScopingDecision | None = None
 
     # Telemetry tracking
-    telemetry_data: dict[str, any] = Field(default_factory=dict)
+    telemetry_data: dict[str, Any] = Field(default_factory=dict)
     start_time: float | None = None
 
     # Errors
