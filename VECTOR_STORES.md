@@ -233,7 +233,7 @@ from storage.schemas import Commitment
 # Process commitment (stores vectors in vector store)
 commitment = Commitment(
     name="SOC 2 CC6.1",
-    legal_text="Access control requirements...",
+    doc_text="Access control requirements...",
     scoping_criteria="Production systems..."
 )
 

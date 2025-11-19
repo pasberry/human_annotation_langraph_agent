@@ -16,7 +16,7 @@ class TestCommitmentOperations:
         retrieved = temp_db.get_commitment(sample_commitment.id)
         assert retrieved is not None
         assert retrieved.name == sample_commitment.name
-        assert retrieved.legal_text == sample_commitment.legal_text
+        assert retrieved.doc_text == sample_commitment.doc_text
 
     def test_get_commitment_by_name(self, temp_db, sample_commitment):
         """Test retrieving commitment by name."""

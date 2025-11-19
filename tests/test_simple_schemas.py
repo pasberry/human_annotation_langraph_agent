@@ -26,7 +26,7 @@ def test_commitment_creation():
     """Test creating a commitment."""
     commitment = Commitment(
         name="Test Commitment",
-        legal_text="This is a test commitment",
+        doc_text="This is a test commitment",
         scoping_criteria="Test criteria"
     )
 

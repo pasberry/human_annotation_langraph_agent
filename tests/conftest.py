@@ -33,7 +33,7 @@ def sample_commitment():
     return Commitment(
         name="Test SOC 2 CC6.1",
         description="Test commitment for access controls",
-        legal_text="""
+        doc_text="""
         SOC 2 Type II - CC6.1: Logical and Physical Access Controls
 
         The entity implements logical access security software to protect information assets.

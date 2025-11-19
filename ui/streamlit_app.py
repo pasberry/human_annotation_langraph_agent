@@ -283,10 +283,10 @@ def manage_commitments_page():
     with st.expander("➕ Add New Commitment", expanded=False):
         name = st.text_input("Commitment Name", placeholder="SOC 2 Type II - CC6.1")
         description = st.text_area("Description (optional)", height=100)
-        legal_text = st.text_area(
-            "Legal Text",
+        doc_text = st.text_area(
+            "Document Text",
             height=300,
-            placeholder="Enter the full legal text of the commitment..."
+            placeholder="Enter the full document text of the commitment..."
         )
         scoping_criteria = st.text_area(
             "Scoping Criteria (optional)",
@@ -299,14 +299,14 @@ def manage_commitments_page():
         )
 
         if st.button("Add Commitment", type="primary"):
-            if not name or not legal_text:
-                st.error("Name and Legal Text are required")
+            if not name or not doc_text:
+                st.error("Name and Document Text are required")
             else:
                 try:
                     commitment = Commitment(
                         name=name,
                         description=description or None,
-                        legal_text=legal_text,
+                        doc_text=doc_text,
                         scoping_criteria=scoping_criteria or None,
                         domain=domain if domain else None
                     )
@@ -337,8 +337,8 @@ def manage_commitments_page():
                 st.write(f"**Domain:** {commitment.domain or 'N/A'}")
                 st.write(f"**ID:** `{commitment.id}`")
 
-                st.markdown("**Legal Text:**")
-                st.text(commitment.legal_text[:500] + "..." if len(commitment.legal_text) > 500 else commitment.legal_text)
+                st.markdown("**Document Text:**")
+                st.text(commitment.doc_text[:500] + "..." if len(commitment.doc_text) > 500 else commitment.doc_text)
 
                 # Show chunk count
                 chunks = db.get_commitment_chunks(commitment.id)

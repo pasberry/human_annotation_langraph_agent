@@ -36,12 +36,12 @@ def setup_sample_commitments():
             print(f"  ⚠️  Already exists, skipping\n")
             continue
 
-        # Read legal text
+        # Read document text
         with open(commitment_info["file"], "r") as f:
-            legal_text = f.read()
+            doc_text = f.read()
 
-        # Split into legal text and scoping criteria
-        parts = legal_text.split("Scoping Considerations:")
+        # Split into doc text and scoping criteria
+        parts = doc_text.split("Scoping Considerations:")
         main_text = parts[0].strip()
         scoping_criteria = parts[1].strip() if len(parts) > 1 else None
 
@@ -49,7 +49,7 @@ def setup_sample_commitments():
         commitment = Commitment(
             name=commitment_info["name"],
             description=commitment_info["description"],
-            legal_text=main_text,
+            doc_text=main_text,
             scoping_criteria=scoping_criteria,
             domain=commitment_info["domain"]
         )

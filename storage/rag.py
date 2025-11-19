@@ -67,8 +67,8 @@ class RAGService:
         Returns:
             List of created chunks
         """
-        # Combine legal text and scoping criteria for chunking
-        full_text = f"{commitment.legal_text}\n\n"
+        # Combine doc text and scoping criteria for chunking
+        full_text = f"{commitment.doc_text}\n\n"
         if commitment.scoping_criteria:
             full_text += f"Scoping Criteria:\n{commitment.scoping_criteria}"
 

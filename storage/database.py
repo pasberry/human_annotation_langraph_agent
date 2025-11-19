@@ -49,7 +49,7 @@ class Database:
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL UNIQUE,
                     description TEXT,
-                    legal_text TEXT NOT NULL,
+                    doc_text TEXT NOT NULL,
                     scoping_criteria TEXT,
                     domain TEXT,
                     created_at DATETIME NOT NULL
@@ -173,13 +173,13 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO commitments (id, name, description, legal_text, scoping_criteria, domain, created_at)
+                INSERT INTO commitments (id, name, description, doc_text, scoping_criteria, domain, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 commitment.id,
                 commitment.name,
                 commitment.description,
-                commitment.legal_text,
+                commitment.doc_text,
                 commitment.scoping_criteria,
                 commitment.domain,
                 commitment.created_at.isoformat()
@@ -199,7 +199,7 @@ class Database:
                 id=row["id"],
                 name=row["name"],
                 description=row["description"],
-                legal_text=row["legal_text"],
+                doc_text=row["doc_text"],
                 scoping_criteria=row["scoping_criteria"],
                 domain=row["domain"],
                 created_at=datetime.fromisoformat(row["created_at"])
@@ -219,7 +219,7 @@ class Database:
                 id=row["id"],
                 name=row["name"],
                 description=row["description"],
-                legal_text=row["legal_text"],
+                doc_text=row["doc_text"],
                 scoping_criteria=row["scoping_criteria"],
                 domain=row["domain"],
                 created_at=datetime.fromisoformat(row["created_at"])
@@ -237,7 +237,7 @@ class Database:
                     id=row["id"],
                     name=row["name"],
                     description=row["description"],
-                    legal_text=row["legal_text"],
+                    doc_text=row["doc_text"],
                     scoping_criteria=row["scoping_criteria"],
                     domain=row["domain"],
                     created_at=datetime.fromisoformat(row["created_at"])

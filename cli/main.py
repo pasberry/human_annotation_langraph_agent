@@ -166,11 +166,11 @@ def feedback(decision_id: str, rating: str, reason: str, correction: str | None)
 
 @cli.command()
 @click.argument("name")
-@click.argument("legal_text_file")
+@click.argument("doc_text_file")
 @click.option("--description", default=None, help="Brief description")
 @click.option("--scoping-criteria", default=None, help="Scoping criteria text")
 @click.option("--domain", default=None, help="Domain (e.g., security, privacy)")
-def add_commitment(name: str, legal_text_file: str, description: str | None, scoping_criteria: str | None, domain: str | None):
+def add_commitment(name: str, doc_text_file: str, description: str | None, scoping_criteria: str | None, domain: str | None):
     """
     Add a new commitment to the system.
 
@@ -180,15 +180,15 @@ def add_commitment(name: str, legal_text_file: str, description: str | None, sco
     console.print(f"\n[bold]Adding commitment:[/bold] {name}\n")
 
     try:
-        # Read legal text
-        with open(legal_text_file, 'r') as f:
-            legal_text = f.read()
+        # Read document text
+        with open(doc_text_file, 'r') as f:
+            doc_text = f.read()
 
         # Create commitment
         commitment = Commitment(
             name=name,
             description=description,
-            legal_text=legal_text,
+            doc_text=doc_text,
             scoping_criteria=scoping_criteria,
             domain=domain
         )
