@@ -12,9 +12,11 @@ from agent.nodes.assess_confidence import assess_confidence_node
 from agent.nodes.build_prompt import build_prompt_node
 from agent.nodes.llm_call import llm_call_node
 from agent.nodes.parse_asset import parse_asset_node
+from agent.nodes.retrieve_decisions import retrieve_decisions_node
 from agent.nodes.retrieve_feedback import retrieve_feedback_node
 from agent.nodes.retrieve_rag import retrieve_rag_node
 from agent.nodes.save_decision import save_decision_node
+from agent.nodes.tool_research import tool_research_node
 from storage.schemas import AgentState
 
 
@@ -32,11 +34,13 @@ def create_evidencing_graph():
     Workflow:
     1. Parse asset URI
     2. Retrieve commitment documentation (RAG)
-    3. Retrieve similar past feedback
-    4. Assess confidence
-    5. Build prompt with evidence
-    6. Call LLM for decision (LangChain 1.0+)
-    7. Save decision to database
+    3. Retrieve similar prior decisions
+    4. Retrieve human feedback on similar decisions
+    5. Conduct tool-based research (MCP tools)
+    6. Assess confidence
+    7. Build prompt with evidence
+    8. Call LLM for decision (LangChain 1.0+)
+    9. Save decision to database
 
     Returns:
         Compiled LangGraph workflow
@@ -47,7 +51,9 @@ def create_evidencing_graph():
     # Add nodes
     workflow.add_node("parse_asset", parse_asset_node)
     workflow.add_node("retrieve_rag", retrieve_rag_node)
+    workflow.add_node("retrieve_decisions", retrieve_decisions_node)
     workflow.add_node("retrieve_feedback", retrieve_feedback_node)
+    workflow.add_node("tool_research", tool_research_node)
     workflow.add_node("assess_confidence", assess_confidence_node)
     workflow.add_node("build_prompt", build_prompt_node)
     workflow.add_node("llm_call", llm_call_node)
@@ -57,8 +63,10 @@ def create_evidencing_graph():
     workflow.set_entry_point("parse_asset")
 
     workflow.add_edge("parse_asset", "retrieve_rag")
-    workflow.add_edge("retrieve_rag", "retrieve_feedback")
-    workflow.add_edge("retrieve_feedback", "assess_confidence")
+    workflow.add_edge("retrieve_rag", "retrieve_decisions")
+    workflow.add_edge("retrieve_decisions", "retrieve_feedback")
+    workflow.add_edge("retrieve_feedback", "tool_research")
+    workflow.add_edge("tool_research", "assess_confidence")
     workflow.add_edge("assess_confidence", "build_prompt")
     workflow.add_edge("build_prompt", "llm_call")
     workflow.add_edge("llm_call", "save_decision")
@@ -80,7 +88,8 @@ class EvidencingAgent:
     def run(
         self,
         asset_uri: str,
-        commitment_id: str,
+        commitment_id: str | None = None,
+        commitment_query: str | None = None,
         session_id: str | None = None,
         thread_id: str | None = None
     ) -> AgentState:
@@ -88,18 +97,36 @@ class EvidencingAgent:
         Run the evidencing agent to make a scoping decision.
 
         Args:
-            asset_uri: Asset URI in format asset://type.descriptor.domain
-            commitment_id: Commitment ID or name
+            asset_uri: Asset URI (e.g., "database.customer_email.marketing_db")
+            commitment_id: Specific commitment ID or name (use this OR commitment_query)
+            commitment_query: Natural language query for commitments (e.g., "no user data for ads")
             session_id: Optional session ID for tracking
             thread_id: Optional thread ID for checkpointing (defaults to session_id)
 
         Returns:
             Final agent state with decision
+
+        Examples:
+            # Mode 1: Specific commitment
+            agent.run(
+                asset_uri="database.customer_email.orders_db",
+                commitment_id="Customer Data Usage Policy"
+            )
+
+            # Mode 2: Natural language query
+            agent.run(
+                asset_uri="database.user_data.ads_training_db",
+                commitment_query="no user data for ads commitments"
+            )
         """
+        if not commitment_id and not commitment_query:
+            raise ValueError("Must provide either commitment_id or commitment_query")
+
         # Create initial state
         initial_state = AgentState(
             asset_uri=asset_uri,
             commitment_id=commitment_id,
+            commitment_query=commitment_query,
             session_id=session_id or "",
             start_time=time.time()
         )

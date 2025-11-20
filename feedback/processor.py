@@ -74,6 +74,7 @@ class FeedbackProcessor:
                     "feedback_id": fb.id,
                     "asset_uri": fb.asset_uri,
                     "decision": fb.agent_decision,
+                    "agent_reasoning": fb.agent_reasoning,
                     "rating": fb.rating,
                     "human_reason": fb.human_reason,
                     "human_correction": fb.human_correction,

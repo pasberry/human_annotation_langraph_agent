@@ -33,7 +33,7 @@ def sample_commitment():
     return Commitment(
         name="Test SOC 2 CC6.1",
         description="Test commitment for access controls",
-        legal_text="""
+        doc_text="""
         SOC 2 Type II - CC6.1: Logical and Physical Access Controls
 
         The entity implements logical access security software to protect information assets.
@@ -41,8 +41,7 @@ def sample_commitment():
 
         Production databases containing customer data must have proper access controls.
         Test environments with synthetic data may be excluded.
-        """,
-        scoping_criteria="""
+
         IN-SCOPE: Production systems, databases with customer data, authentication systems
         OUT-OF-SCOPE: Test environments, development systems, public data
         """,

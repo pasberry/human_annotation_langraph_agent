@@ -49,10 +49,11 @@ class Commitment(BaseModel):
 
     id: str = Field(default_factory=lambda: str(uuid4()))
     name: str = Field(..., description="Commitment name (e.g., 'SOC 2 Type II - CC6.1')")
-    description: str | None = Field(default=None, description="Brief description")
-    legal_text: str = Field(..., description="Full legal verbiage")
-    scoping_criteria: str | None = Field(default=None, description="How to determine in/out scope")
-    domain: str | None = Field(default=None, description="Domain (e.g., 'security', 'privacy')")
+    description: str | None = Field(
+        default=None,
+        description="Rich semantic description (preferably LLM-generated) capturing key prohibitions, permissions, and relevant keywords for search"
+    )
+    doc_text: str = Field(..., description="Full document text")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -250,7 +251,8 @@ class AgentState(BaseModel):
 
     # Input
     asset_uri: str
-    commitment_id: str
+    commitment_id: str | None = None  # Optional if using commitment_query
+    commitment_query: str | None = None  # Natural language query for commitments
     commitment_name: str | None = None
     session_id: str = Field(default_factory=lambda: str(uuid4()))
 
@@ -258,15 +260,22 @@ class AgentState(BaseModel):
     asset: AssetURI | None = None
 
     # Commitment data
-    commitment: Commitment | None = None
+    commitment: Commitment | None = None  # Primary commitment (if using ID)
+    related_commitments: list[Commitment] = Field(default_factory=list)  # Multiple commitments from search
 
     # RAG results
     rag_chunks: list[CommitmentChunk] = Field(default_factory=list)
     rag_context: RAGContext | None = None
 
-    # Feedback results
-    similar_feedback: list[DecisionFeedback] = Field(default_factory=list)
+    # Feedback results (list of dicts from feedback_processor.retrieve_similar_feedback)
+    similar_feedback: list[dict[str, Any]] = Field(default_factory=list)
     feedback_context: FeedbackContext | None = None
+
+    # Similar decisions (prior scoping decisions without feedback requirement)
+    similar_decisions: list[dict[str, Any]] = Field(default_factory=list)
+
+    # Tool results from MCP research tools
+    tool_results: dict[str, Any] = Field(default_factory=dict)
 
     # Query embedding
     query_embedding: list[float] = Field(default_factory=list)

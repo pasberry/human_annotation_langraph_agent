@@ -2,8 +2,8 @@
 import time
 from datetime import datetime
 
-from storage import db
-from storage.schemas import AgentState, ScopingDecision, Telemetry
+from storage import db, vector_store
+from storage.schemas import AgentState, ScopingDecision, Telemetry, VectorDocument
 
 
 def save_decision_node(state: AgentState) -> AgentState:
@@ -65,12 +65,33 @@ def save_decision_node(state: AgentState) -> AgentState:
         # Save to database
         db.add_scoping_decision(decision)
 
+        # Also store in vector store for similarity search
+        # Create descriptive text for the decision
+        decision_text = f"{state.asset_uri}: {state.response.decision} - {state.response.reasoning[:200]}"
+
+        vector_doc = VectorDocument(
+            id=f"decision_{decision.id}",
+            text=decision_text,
+            embedding=state.query_embedding,
+            metadata={
+                "type": "decision",
+                "decision_id": decision.id,
+                "commitment_id": state.commitment_id,
+                "asset_uri": state.asset_uri,
+                "decision": state.response.decision,
+                "confidence_level": state.response.confidence_level
+            }
+        )
+
+        vector_store.add_documents([vector_doc])
+
         state.decision = decision
 
         # Track telemetry
         state.telemetry_data["save_decision"] = {
             "decision_id": decision.id,
             "total_latency_ms": total_latency_ms,
+            "stored_in_vector_db": True,
             "time_ms": (time.time() - start) * 1000
         }
 

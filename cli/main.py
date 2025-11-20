@@ -11,8 +11,7 @@ from rich.syntax import Syntax
 from agent.graph import agent
 from feedback.collector import feedback_collector
 from feedback.processor import feedback_processor
-from storage import db, rag_service
-from storage.schemas import Commitment
+from storage import db
 
 
 console = Console()
@@ -27,22 +26,37 @@ def cli():
 @cli.command()
 @click.argument("asset_uri")
 @click.argument("commitment")
-def decide(asset_uri: str, commitment: str):
+@click.option("--query", is_flag=True, help="Treat commitment as natural language query instead of ID")
+def decide(asset_uri: str, commitment: str, query: bool):
     """
     Make a scoping decision for an asset and commitment.
 
-    Example:
-        cli decide asset://database.customer_data.production "SOC 2 CC6.1"
+    Examples:
+        # By commitment ID/name
+        cli decide database.customer_data.production "Customer Data Usage Policy"
+
+        # By natural language query
+        cli decide database.user_data.ads_training "no user data for ads" --query
     """
     console.print(f"\n[bold]Analyzing asset:[/bold] {asset_uri}")
-    console.print(f"[bold]Commitment:[/bold] {commitment}\n")
+    if query:
+        console.print(f"[bold]Commitment Query:[/bold] \"{commitment}\"")
+        console.print("[dim]Searching for relevant commitments...[/dim]\n")
+    else:
+        console.print(f"[bold]Commitment:[/bold] {commitment}\n")
 
     with console.status("[bold green]Processing...") as status:
         # Run the agent
-        result = agent.run(
-            asset_uri=asset_uri,
-            commitment_id=commitment
-        )
+        if query:
+            result = agent.run(
+                asset_uri=asset_uri,
+                commitment_query=commitment
+            )
+        else:
+            result = agent.run(
+                asset_uri=asset_uri,
+                commitment_id=commitment
+            )
 
     # Check for errors
     if result.errors:
@@ -163,55 +177,7 @@ def feedback(decision_id: str, rating: str, reason: str, correction: str | None)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
 
-
-@cli.command()
-@click.argument("name")
-@click.argument("legal_text_file")
-@click.option("--description", default=None, help="Brief description")
-@click.option("--scoping-criteria", default=None, help="Scoping criteria text")
-@click.option("--domain", default=None, help="Domain (e.g., security, privacy)")
-def add_commitment(name: str, legal_text_file: str, description: str | None, scoping_criteria: str | None, domain: str | None):
-    """
-    Add a new commitment to the system.
-
-    Example:
-        cli add-commitment "SOC 2 CC6.1" soc2_cc6.1.txt --domain security
-    """
-    console.print(f"\n[bold]Adding commitment:[/bold] {name}\n")
-
-    try:
-        # Read legal text
-        with open(legal_text_file, 'r') as f:
-            legal_text = f.read()
-
-        # Create commitment
-        commitment = Commitment(
-            name=name,
-            description=description,
-            legal_text=legal_text,
-            scoping_criteria=scoping_criteria,
-            domain=domain
-        )
-
-        # Add to database
-        db.add_commitment(commitment)
-
-        console.print("[green]✓[/green] Commitment added to database")
-
-        # Process for RAG
-        with console.status("[bold green]Processing commitment for RAG..."):
-            chunks = rag_service.process_and_store_commitment(commitment)
-
-        console.print(f"[green]✓[/green] Created {len(chunks)} chunks for RAG\n")
-        console.print(Panel(
-            f"[bold green]Commitment added successfully![/bold green]\n"
-            f"ID: {commitment.id}\n"
-            f"Chunks: {len(chunks)}",
-            style="green"
-        ))
-
-    except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+# Commitment ingestion removed - use: python -m ingestion.commitment_ingestion <path>
 
 
 @cli.command()
@@ -285,6 +251,59 @@ def stats(commitment: str | None):
         title="Feedback Statistics",
         style="blue"
     ))
+
+
+@cli.command()
+@click.argument("decision_id")
+def list_feedback(decision_id: str):
+    """
+    List all feedback for a specific decision.
+
+    Example:
+        cli list-feedback abc-123-def
+    """
+    console.print(f"\n[bold]Feedback for Decision:[/bold] {decision_id}\n")
+
+    # Get the decision
+    decision = db.get_scoping_decision(decision_id)
+    if not decision:
+        console.print(f"[bold red]Decision not found:[/bold red] {decision_id}")
+        return
+
+    # Show decision summary
+    console.print(Panel(
+        f"[bold]Asset:[/bold] {decision['asset_uri']}\n"
+        f"[bold]Commitment:[/bold] {decision['commitment_name']}\n"
+        f"[bold]Decision:[/bold] {decision['decision']}\n"
+        f"[bold]Confidence:[/bold] {decision['confidence_level']} ({decision['confidence_score']:.2f})",
+        title="Original Decision",
+        style="cyan"
+    ))
+
+    # Get feedback for this decision
+    feedback_list = db.list_feedback(decision_id=decision_id)
+
+    if not feedback_list:
+        console.print("\n[yellow]No feedback found for this decision[/yellow]\n")
+        return
+
+    console.print(f"\n[bold]Found {len(feedback_list)} feedback entries:[/bold]\n")
+
+    for idx, fb in enumerate(feedback_list, 1):
+        rating_emoji = "👍" if fb.rating == "up" else "👎"
+        rating_color = "green" if fb.rating == "up" else "red"
+
+        console.print(Panel(
+            f"[bold {rating_color}]{rating_emoji} {fb.rating.upper()}[/bold {rating_color}]\n\n"
+            f"[bold]Human Reason:[/bold]\n{fb.human_reason}\n"
+            + (f"\n[bold]Correction:[/bold]\n{fb.human_correction}\n" if fb.human_correction else "") +
+            f"\n[dim]Submitted: {fb.created_at.strftime('%Y-%m-%d %H:%M:%S')}[/dim]\n"
+            f"[dim]Feedback ID: {fb.id}[/dim]",
+            title=f"Feedback #{idx}",
+            style=rating_color
+        ))
+
+    console.print()
 
 
 @cli.command()

@@ -67,13 +67,8 @@ class RAGService:
         Returns:
             List of created chunks
         """
-        # Combine legal text and scoping criteria for chunking
-        full_text = f"{commitment.legal_text}\n\n"
-        if commitment.scoping_criteria:
-            full_text += f"Scoping Criteria:\n{commitment.scoping_criteria}"
-
-        # Chunk the text
-        text_chunks = self.chunk_text(full_text)
+        # Chunk the document text
+        text_chunks = self.chunk_text(commitment.doc_text)
 
         # Generate embeddings
         embeddings = embedding_service.embed_texts(text_chunks)
