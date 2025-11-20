@@ -288,11 +288,6 @@ def manage_commitments_page():
             height=300,
             placeholder="Enter the full document text of the commitment..."
         )
-        scoping_criteria = st.text_area(
-            "Scoping Criteria (optional)",
-            height=150,
-            placeholder="How to determine if an asset is in-scope or out-of-scope..."
-        )
         domain = st.selectbox(
             "Domain (optional)",
             ["", "security", "privacy", "financial", "operational", "other"]
@@ -307,7 +302,6 @@ def manage_commitments_page():
                         name=name,
                         description=description or None,
                         doc_text=doc_text,
-                        scoping_criteria=scoping_criteria or None,
                         domain=domain if domain else None
                     )
 

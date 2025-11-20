@@ -41,8 +41,7 @@ def sample_commitment():
 
         Production databases containing customer data must have proper access controls.
         Test environments with synthetic data may be excluded.
-        """,
-        scoping_criteria="""
+
         IN-SCOPE: Production systems, databases with customer data, authentication systems
         OUT-OF-SCOPE: Test environments, development systems, public data
         """,

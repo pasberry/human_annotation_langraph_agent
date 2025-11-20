@@ -40,17 +40,11 @@ def setup_sample_commitments():
         with open(commitment_info["file"], "r") as f:
             doc_text = f.read()
 
-        # Split into doc text and scoping criteria
-        parts = doc_text.split("Scoping Considerations:")
-        main_text = parts[0].strip()
-        scoping_criteria = parts[1].strip() if len(parts) > 1 else None
-
         # Create commitment
         commitment = Commitment(
             name=commitment_info["name"],
             description=commitment_info["description"],
-            doc_text=main_text,
-            scoping_criteria=scoping_criteria,
+            doc_text=doc_text,
             domain=commitment_info["domain"]
         )
 

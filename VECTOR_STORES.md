@@ -233,8 +233,7 @@ from storage.schemas import Commitment
 # Process commitment (stores vectors in vector store)
 commitment = Commitment(
     name="SOC 2 CC6.1",
-    doc_text="Access control requirements...",
-    scoping_criteria="Production systems..."
+    doc_text="Access control requirements..."
 )
 
 chunks = rag_service.process_and_store_commitment(commitment)

@@ -50,7 +50,6 @@ class Database:
                     name TEXT NOT NULL UNIQUE,
                     description TEXT,
                     doc_text TEXT NOT NULL,
-                    scoping_criteria TEXT,
                     domain TEXT,
                     created_at DATETIME NOT NULL
                 )
@@ -173,14 +172,13 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO commitments (id, name, description, doc_text, scoping_criteria, domain, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO commitments (id, name, description, doc_text, domain, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
             """, (
                 commitment.id,
                 commitment.name,
                 commitment.description,
                 commitment.doc_text,
-                commitment.scoping_criteria,
                 commitment.domain,
                 commitment.created_at.isoformat()
             ))
@@ -200,7 +198,6 @@ class Database:
                 name=row["name"],
                 description=row["description"],
                 doc_text=row["doc_text"],
-                scoping_criteria=row["scoping_criteria"],
                 domain=row["domain"],
                 created_at=datetime.fromisoformat(row["created_at"])
             )
@@ -220,7 +217,6 @@ class Database:
                 name=row["name"],
                 description=row["description"],
                 doc_text=row["doc_text"],
-                scoping_criteria=row["scoping_criteria"],
                 domain=row["domain"],
                 created_at=datetime.fromisoformat(row["created_at"])
             )
@@ -238,7 +234,6 @@ class Database:
                     name=row["name"],
                     description=row["description"],
                     doc_text=row["doc_text"],
-                    scoping_criteria=row["scoping_criteria"],
                     domain=row["domain"],
                     created_at=datetime.fromisoformat(row["created_at"])
                 )

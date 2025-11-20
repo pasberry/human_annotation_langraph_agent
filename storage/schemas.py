@@ -51,7 +51,6 @@ class Commitment(BaseModel):
     name: str = Field(..., description="Commitment name (e.g., 'SOC 2 Type II - CC6.1')")
     description: str | None = Field(default=None, description="Brief description")
     doc_text: str = Field(..., description="Full document text")
-    scoping_criteria: str | None = Field(default=None, description="How to determine in/out scope")
     domain: str | None = Field(default=None, description="Domain (e.g., 'security', 'privacy')")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

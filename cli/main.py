@@ -168,9 +168,8 @@ def feedback(decision_id: str, rating: str, reason: str, correction: str | None)
 @click.argument("name")
 @click.argument("doc_text_file")
 @click.option("--description", default=None, help="Brief description")
-@click.option("--scoping-criteria", default=None, help="Scoping criteria text")
 @click.option("--domain", default=None, help="Domain (e.g., security, privacy)")
-def add_commitment(name: str, doc_text_file: str, description: str | None, scoping_criteria: str | None, domain: str | None):
+def add_commitment(name: str, doc_text_file: str, description: str | None, domain: str | None):
     """
     Add a new commitment to the system.
 
@@ -189,7 +188,6 @@ def add_commitment(name: str, doc_text_file: str, description: str | None, scopi
             name=name,
             description=description,
             doc_text=doc_text,
-            scoping_criteria=scoping_criteria,
             domain=domain
         )
 
