@@ -159,15 +159,6 @@ Your response must be in JSON format following this exact schema:
         user_parts.append("")
 
         if state.tool_results:
-            # Show asset parsing results
-            if "asset_parsing" in state.tool_results:
-                parsing = state.tool_results["asset_parsing"]
-                user_parts.append("### Asset URI Breakdown")
-                user_parts.append(f"- **Type**: {parsing.get('asset_type', 'unknown')}")
-                user_parts.append(f"- **Descriptor**: {parsing.get('asset_descriptor', 'unknown')}")
-                user_parts.append(f"- **Domain**: {parsing.get('asset_domain', 'unknown')}")
-                user_parts.append("")
-
             # Show lineage results
             if "lineage" in state.tool_results:
                 lineage = state.tool_results["lineage"]
@@ -175,6 +166,9 @@ Your response must be in JSON format following this exact schema:
                 if lineage.get("available"):
                     user_parts.append(f"**Upstream Sources**: {', '.join(lineage.get('upstream', []))}")
                     user_parts.append(f"**Downstream Consumers**: {', '.join(lineage.get('downstream', []))}")
+                    user_parts.append("")
+                    user_parts.append("Use this lineage information to understand how data flows through this asset")
+                    user_parts.append("and whether the asset is part of a restricted data pipeline.")
                 else:
                     user_parts.append(f"*{lineage.get('message', 'Not available')}*")
                 user_parts.append("")
@@ -189,6 +183,9 @@ Your response must be in JSON format following this exact schema:
                         user_parts.append("**Fields**:")
                         for field in metadata.get("fields", []):
                             user_parts.append(f"  - {field['name']}: {field.get('type', 'unknown')} - {field.get('description', '')}")
+                    user_parts.append("")
+                    user_parts.append("Use this metadata to understand what data the asset contains")
+                    user_parts.append("and whether it processes sensitive information.")
                 else:
                     user_parts.append(f"*{metadata.get('message', 'Not available')}*")
                 user_parts.append("")
@@ -200,6 +197,9 @@ Your response must be in JSON format following this exact schema:
                 if classification.get("available"):
                     user_parts.append(f"**Contains PII**: {classification.get('contains_pii', 'Unknown')}")
                     user_parts.append(f"**Sensitivity Level**: {classification.get('sensitivity', 'Unknown')}")
+                    user_parts.append("")
+                    user_parts.append("Use this classification to determine if the asset contains")
+                    user_parts.append("sensitive data subject to the commitment requirements.")
                 else:
                     user_parts.append(f"*{classification.get('message', 'Not available')}*")
                 user_parts.append("")

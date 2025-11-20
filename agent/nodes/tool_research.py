@@ -33,34 +33,22 @@ def tool_research_node(state: AgentState) -> AgentState:
         # 4. get_data_classification(asset_uri) -> PII detection, sensitivity
         # 5. get_related_assets(asset_uri) -> similar or connected assets
         #
-        # For now, we'll populate with basic information from the asset
+        # For now, all tools return "not available" until MCP tools are configured
 
-        tool_results = {}
-
-        if state.asset:
-            # Parse asset URI components
-            tool_results["asset_parsing"] = {
-                "asset_type": state.asset.asset_type,
-                "asset_descriptor": state.asset.asset_descriptor,
-                "asset_domain": state.asset.asset_domain,
-                "full_uri": state.asset_uri
-            }
-
-            # Placeholder for future tool results
-            tool_results["lineage"] = {
+        tool_results = {
+            "lineage": {
                 "available": False,
                 "message": "Lineage tools not yet configured. Use MCP to add lineage provider."
-            }
-
-            tool_results["metadata"] = {
+            },
+            "metadata": {
                 "available": False,
                 "message": "Metadata tools not yet configured. Use MCP to add metadata provider."
-            }
-
-            tool_results["data_classification"] = {
+            },
+            "data_classification": {
                 "available": False,
                 "message": "Classification tools not yet configured. Use MCP to add classification provider."
             }
+        }
 
         state.tool_results = tool_results
 
