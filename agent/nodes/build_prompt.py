@@ -100,15 +100,18 @@ IMPORTANT RULES:
         if state.similar_feedback:
             user_parts.append(f"# Similar Past Decisions (Learn from these)")
             for idx, feedback in enumerate(state.similar_feedback):
-                user_parts.append(f"\n## Past Decision {idx + 1} (ID: {feedback.id})")
-                user_parts.append(f"- Asset: {feedback.asset_uri}")
-                user_parts.append(f"- Decision: {feedback.agent_decision}")
-                user_parts.append(f"- Rating: {'👍 Correct' if feedback.rating == 'up' else '👎 Incorrect'}")
-                user_parts.append(f"- Date: {feedback.created_at.strftime('%Y-%m-%d')}")
-                user_parts.append(f"- Reasoning: {feedback.agent_reasoning}")
-                user_parts.append(f"- Human Feedback: {feedback.human_reason}")
-                if feedback.human_correction:
-                    user_parts.append(f"- Correction: {feedback.human_correction}")
+                user_parts.append(f"\n## Past Decision {idx + 1} (ID: {feedback['feedback_id']})")
+                user_parts.append(f"- Asset: {feedback['asset_uri']}")
+                user_parts.append(f"- Decision: {feedback['decision']}")
+                user_parts.append(f"- Rating: {'👍 Correct' if feedback['rating'] == 'up' else '👎 Incorrect'}")
+                user_parts.append(f"- Date: {feedback['created_at'].strftime('%Y-%m-%d')}")
+                user_parts.append(f"- Reasoning: {feedback['agent_reasoning']}")
+                user_parts.append(f"- Human Feedback: {feedback['human_reason']}")
+                if feedback.get('human_correction'):
+                    user_parts.append(f"- Correction: {feedback['human_correction']}")
+                user_parts.append(f"- Similarity Score: {feedback['similarity']:.3f}")
+                if 'frequency_weight' in feedback and feedback['frequency_weight'] > 1.0:
+                    user_parts.append(f"- Frequency Weight: {feedback['frequency_weight']:.2f} (appears {feedback.get('cluster_size', 1)} times)")
                 user_parts.append("")
         else:
             user_parts.append("# Similar Past Decisions")

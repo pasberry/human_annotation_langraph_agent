@@ -264,8 +264,8 @@ class AgentState(BaseModel):
     rag_chunks: list[CommitmentChunk] = Field(default_factory=list)
     rag_context: RAGContext | None = None
 
-    # Feedback results
-    similar_feedback: list[DecisionFeedback] = Field(default_factory=list)
+    # Feedback results (list of dicts from feedback_processor.retrieve_similar_feedback)
+    similar_feedback: list[dict[str, Any]] = Field(default_factory=list)
     feedback_context: FeedbackContext | None = None
 
     # Query embedding
