@@ -445,6 +445,7 @@ class Database:
 
     def list_feedback(
         self,
+        decision_id: str | None = None,
         commitment_id: str | None = None,
         rating: str | None = None,
         limit: int = 100
@@ -455,6 +456,10 @@ class Database:
 
             query = "SELECT * FROM decision_feedback WHERE 1=1"
             params = []
+
+            if decision_id:
+                query += " AND decision_id = ?"
+                params.append(decision_id)
 
             if commitment_id:
                 query += " AND commitment_id = ?"

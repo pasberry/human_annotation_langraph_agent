@@ -288,6 +288,59 @@ def stats(commitment: str | None):
 
 
 @cli.command()
+@click.argument("decision_id")
+def list_feedback(decision_id: str):
+    """
+    List all feedback for a specific decision.
+
+    Example:
+        cli list-feedback abc-123-def
+    """
+    console.print(f"\n[bold]Feedback for Decision:[/bold] {decision_id}\n")
+
+    # Get the decision
+    decision = db.get_scoping_decision(decision_id)
+    if not decision:
+        console.print(f"[bold red]Decision not found:[/bold red] {decision_id}")
+        return
+
+    # Show decision summary
+    console.print(Panel(
+        f"[bold]Asset:[/bold] {decision['asset_uri']}\n"
+        f"[bold]Commitment:[/bold] {decision['commitment_name']}\n"
+        f"[bold]Decision:[/bold] {decision['decision']}\n"
+        f"[bold]Confidence:[/bold] {decision['confidence_level']} ({decision['confidence_score']:.2f})",
+        title="Original Decision",
+        style="cyan"
+    ))
+
+    # Get feedback for this decision
+    feedback_list = db.list_feedback(decision_id=decision_id)
+
+    if not feedback_list:
+        console.print("\n[yellow]No feedback found for this decision[/yellow]\n")
+        return
+
+    console.print(f"\n[bold]Found {len(feedback_list)} feedback entries:[/bold]\n")
+
+    for idx, fb in enumerate(feedback_list, 1):
+        rating_emoji = "👍" if fb.rating == "up" else "👎"
+        rating_color = "green" if fb.rating == "up" else "red"
+
+        console.print(Panel(
+            f"[bold {rating_color}]{rating_emoji} {fb.rating.upper()}[/bold {rating_color}]\n\n"
+            f"[bold]Human Reason:[/bold]\n{fb.human_reason}\n"
+            + (f"\n[bold]Correction:[/bold]\n{fb.human_correction}\n" if fb.human_correction else "") +
+            f"\n[dim]Submitted: {fb.created_at.strftime('%Y-%m-%d %H:%M:%S')}[/dim]\n"
+            f"[dim]Feedback ID: {fb.id}[/dim]",
+            title=f"Feedback #{idx}",
+            style=rating_color
+        ))
+
+    console.print()
+
+
+@cli.command()
 @click.argument("thread_id")
 def checkpoint_history(thread_id: str):
     """
