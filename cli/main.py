@@ -11,8 +11,7 @@ from rich.syntax import Syntax
 from agent.graph import agent
 from feedback.collector import feedback_collector
 from feedback.processor import feedback_processor
-from storage import commitment_search_service, db, rag_service
-from storage.schemas import Commitment
+from storage import db
 
 
 console = Console()
@@ -178,63 +177,7 @@ def feedback(decision_id: str, rating: str, reason: str, correction: str | None)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
 
-
-@cli.command()
-@click.argument("name")
-@click.argument("doc_text_file")
-@click.option("--description", default=None, help="LLM-generated semantic description (use ingestion service for automatic generation)")
-def add_commitment(name: str, doc_text_file: str, description: str | None):
-    """
-    Add a new commitment to the system.
-
-    NOTE: For production use, prefer the ingestion service which auto-generates
-    rich semantic descriptions using LLM:
-        python -m ingestion.commitment_ingestion <path>
-
-    Example:
-        cli add-commitment "SOC 2 CC6.1" soc2_cc6.1.txt --description "..."
-    """
-    console.print(f"\n[bold]Adding commitment:[/bold] {name}")
-    console.print(f"[yellow]⚠️  Consider using ingestion service for LLM-generated descriptions[/yellow]\n")
-
-    try:
-        # Read document text
-        with open(doc_text_file, 'r') as f:
-            doc_text = f.read()
-
-        # Create commitment
-        commitment = Commitment(
-            name=name,
-            description=description,
-            doc_text=doc_text
-        )
-
-        # Add to database
-        db.add_commitment(commitment)
-
-        console.print("[green]✓[/green] Commitment added to database")
-
-        # Process for RAG
-        with console.status("[bold green]Processing commitment for RAG..."):
-            chunks = rag_service.process_and_store_commitment(commitment)
-
-        console.print(f"[green]✓[/green] Created {len(chunks)} chunks for RAG")
-
-        # Store commitment summary for search
-        with console.status("[bold green]Making commitment searchable..."):
-            commitment_search_service.store_commitment_summary(commitment)
-
-        console.print(f"[green]✓[/green] Commitment summary stored for natural language search\n")
-        console.print(Panel(
-            f"[bold green]Commitment added successfully![/bold green]\n"
-            f"ID: {commitment.id}\n"
-            f"Chunks: {len(chunks)}\n"
-            f"Searchable: Yes (try using commitment queries)",
-            style="green"
-        ))
-
-    except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {str(e)}")
+# Commitment ingestion removed - use: python -m ingestion.commitment_ingestion <path>
 
 
 @cli.command()
