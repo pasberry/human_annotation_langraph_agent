@@ -49,9 +49,11 @@ class Commitment(BaseModel):
 
     id: str = Field(default_factory=lambda: str(uuid4()))
     name: str = Field(..., description="Commitment name (e.g., 'SOC 2 Type II - CC6.1')")
-    description: str | None = Field(default=None, description="Brief description")
+    description: str | None = Field(
+        default=None,
+        description="Rich semantic description (preferably LLM-generated) capturing key prohibitions, permissions, and relevant keywords for search"
+    )
     doc_text: str = Field(..., description="Full document text")
-    domain: str | None = Field(default=None, description="Domain (e.g., 'security', 'privacy')")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

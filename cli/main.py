@@ -182,16 +182,20 @@ def feedback(decision_id: str, rating: str, reason: str, correction: str | None)
 @cli.command()
 @click.argument("name")
 @click.argument("doc_text_file")
-@click.option("--description", default=None, help="Brief description")
-@click.option("--domain", default=None, help="Domain (e.g., security, privacy)")
-def add_commitment(name: str, doc_text_file: str, description: str | None, domain: str | None):
+@click.option("--description", default=None, help="LLM-generated semantic description (use ingestion service for automatic generation)")
+def add_commitment(name: str, doc_text_file: str, description: str | None):
     """
     Add a new commitment to the system.
 
+    NOTE: For production use, prefer the ingestion service which auto-generates
+    rich semantic descriptions using LLM:
+        python -m ingestion.commitment_ingestion <path>
+
     Example:
-        cli add-commitment "SOC 2 CC6.1" soc2_cc6.1.txt --domain security
+        cli add-commitment "SOC 2 CC6.1" soc2_cc6.1.txt --description "..."
     """
-    console.print(f"\n[bold]Adding commitment:[/bold] {name}\n")
+    console.print(f"\n[bold]Adding commitment:[/bold] {name}")
+    console.print(f"[yellow]⚠️  Consider using ingestion service for LLM-generated descriptions[/yellow]\n")
 
     try:
         # Read document text
@@ -202,8 +206,7 @@ def add_commitment(name: str, doc_text_file: str, description: str | None, domai
         commitment = Commitment(
             name=name,
             description=description,
-            doc_text=doc_text,
-            domain=domain
+            doc_text=doc_text
         )
 
         # Add to database

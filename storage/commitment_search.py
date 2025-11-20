@@ -61,12 +61,17 @@ class CommitmentSearchService:
         Store commitment summary in vector DB for search.
 
         This creates a searchable entry combining the commitment name
-        and description so users can find commitments by natural language.
+        and description (which should be LLM-generated for rich semantic content).
+
+        The description should capture:
+        - What data/assets are governed
+        - Key prohibitions and permissions
+        - Relevant keywords for search
 
         Args:
             commitment: The commitment to make searchable
         """
-        # Build searchable text
+        # Build searchable text from name + LLM description
         summary_text = f"{commitment.name}"
         if commitment.description:
             summary_text += f". {commitment.description}"
@@ -82,8 +87,7 @@ class CommitmentSearchService:
             metadata={
                 "type": "commitment_summary",
                 "commitment_id": commitment.id,
-                "name": commitment.name,
-                "domain": commitment.domain or "general"
+                "name": commitment.name
             }
         )
 
