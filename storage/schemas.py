@@ -267,6 +267,12 @@ class AgentState(BaseModel):
     similar_feedback: list[dict[str, Any]] = Field(default_factory=list)
     feedback_context: FeedbackContext | None = None
 
+    # Similar decisions (prior scoping decisions without feedback requirement)
+    similar_decisions: list[dict[str, Any]] = Field(default_factory=list)
+
+    # Tool results from MCP research tools
+    tool_results: dict[str, Any] = Field(default_factory=dict)
+
     # Query embedding
     query_embedding: list[float] = Field(default_factory=list)
 

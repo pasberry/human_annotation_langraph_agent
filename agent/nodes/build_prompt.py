@@ -155,14 +155,58 @@ Your response must be in JSON format following this exact schema:
         # Section 2: Research Analysis (Tool Results)
         user_parts.append("## RESEARCH ANALYSIS")
         user_parts.append("")
-        # TODO: Add tool results here when implemented
-        user_parts.append("*Tool-based research is not yet available.*")
+        user_parts.append("This section contains information gathered from research tools about the asset.")
         user_parts.append("")
-        user_parts.append("**Available Information**:")
-        user_parts.append(f"- Asset URI components: type={state.asset.asset_type if state.asset else 'unknown'}, descriptor={state.asset.asset_descriptor if state.asset else 'unknown'}, domain={state.asset.asset_domain if state.asset else 'unknown'}")
-        user_parts.append("")
-        user_parts.append("**Note**: Additional context from lineage, metadata, and field analysis tools will appear here in future versions.")
-        user_parts.append("")
+
+        if state.tool_results:
+            # Show asset parsing results
+            if "asset_parsing" in state.tool_results:
+                parsing = state.tool_results["asset_parsing"]
+                user_parts.append("### Asset URI Breakdown")
+                user_parts.append(f"- **Type**: {parsing.get('asset_type', 'unknown')}")
+                user_parts.append(f"- **Descriptor**: {parsing.get('asset_descriptor', 'unknown')}")
+                user_parts.append(f"- **Domain**: {parsing.get('asset_domain', 'unknown')}")
+                user_parts.append("")
+
+            # Show lineage results
+            if "lineage" in state.tool_results:
+                lineage = state.tool_results["lineage"]
+                user_parts.append("### Data Lineage")
+                if lineage.get("available"):
+                    user_parts.append(f"**Upstream Sources**: {', '.join(lineage.get('upstream', []))}")
+                    user_parts.append(f"**Downstream Consumers**: {', '.join(lineage.get('downstream', []))}")
+                else:
+                    user_parts.append(f"*{lineage.get('message', 'Not available')}*")
+                user_parts.append("")
+
+            # Show metadata results
+            if "metadata" in state.tool_results:
+                metadata = state.tool_results["metadata"]
+                user_parts.append("### Asset Metadata")
+                if metadata.get("available"):
+                    user_parts.append(f"**Description**: {metadata.get('description', 'N/A')}")
+                    if metadata.get("fields"):
+                        user_parts.append("**Fields**:")
+                        for field in metadata.get("fields", []):
+                            user_parts.append(f"  - {field['name']}: {field.get('type', 'unknown')} - {field.get('description', '')}")
+                else:
+                    user_parts.append(f"*{metadata.get('message', 'Not available')}*")
+                user_parts.append("")
+
+            # Show classification results
+            if "data_classification" in state.tool_results:
+                classification = state.tool_results["data_classification"]
+                user_parts.append("### Data Classification")
+                if classification.get("available"):
+                    user_parts.append(f"**Contains PII**: {classification.get('contains_pii', 'Unknown')}")
+                    user_parts.append(f"**Sensitivity Level**: {classification.get('sensitivity', 'Unknown')}")
+                else:
+                    user_parts.append(f"*{classification.get('message', 'Not available')}*")
+                user_parts.append("")
+        else:
+            user_parts.append("*No tool research results available.*")
+            user_parts.append("")
+
         user_parts.append("---")
         user_parts.append("")
 
@@ -172,20 +216,29 @@ Your response must be in JSON format following this exact schema:
         user_parts.append("These are similar scoping decisions made previously. Learn from these patterns to maintain consistency.")
         user_parts.append("")
 
-        if state.similar_feedback:
-            for idx, feedback in enumerate(state.similar_feedback):
+        if state.similar_decisions:
+            user_parts.append(f"**Found {len(state.similar_decisions)} similar prior decisions:**")
+            user_parts.append("")
+
+            for idx, decision in enumerate(state.similar_decisions):
                 user_parts.append(f"### Prior Decision {idx + 1}")
-                user_parts.append(f"**Feedback ID**: `{feedback['feedback_id']}`")
-                user_parts.append(f"**Similar Asset**: `{feedback['asset_uri']}`")
-                user_parts.append(f"**Similarity Score**: {feedback['similarity']:.3f} (0.0 = unrelated, 1.0 = identical)")
-                if 'frequency_weight' in feedback and feedback['frequency_weight'] > 1.0:
-                    user_parts.append(f"**Frequency Pattern**: This decision pattern has appeared {feedback.get('cluster_size', 1)} times (weight: {feedback['frequency_weight']:.2f})")
-                user_parts.append(f"**Agent's Decision**: {feedback['decision']}")
-                user_parts.append(f"**Agent's Reasoning**:")
+                user_parts.append(f"**Decision ID**: `{decision['decision_id']}`")
+                user_parts.append(f"**Similar Asset**: `{decision['asset_uri']}`")
+                user_parts.append(f"**Similarity Score**: {decision['similarity']:.3f} (0.0 = unrelated, 1.0 = identical)")
+                user_parts.append(f"**Decision**: {decision['decision']}")
+                user_parts.append(f"**Confidence**: {decision['confidence_level']} ({decision['confidence_score']:.2f})")
+                user_parts.append(f"**Reasoning**:")
                 user_parts.append(f"```")
-                user_parts.append(feedback['agent_reasoning'])
+                user_parts.append(decision['reasoning'][:500])  # Truncate long reasoning
+                if len(decision['reasoning']) > 500:
+                    user_parts.append("... [truncated]")
                 user_parts.append(f"```")
-                user_parts.append(f"**Date**: {feedback['created_at'].strftime('%Y-%m-%d')}")
+
+                # Show commitment references if available
+                if decision.get('commitment_references'):
+                    user_parts.append(f"**Referenced Chunks**: {', '.join([ref['chunk_id'] for ref in decision['commitment_references'][:3]])}")
+
+                user_parts.append(f"**Date**: {decision['created_at']}")
                 user_parts.append("")
         else:
             user_parts.append("*No similar prior decisions found.*")
@@ -293,7 +346,9 @@ Your response must be in JSON format following this exact schema:
             "system_prompt_length": len(system_prompt),
             "user_prompt_length": len(user_prompt),
             "rag_chunks_included": len(state.rag_chunks),
+            "similar_decisions_included": len(state.similar_decisions),
             "feedback_examples_included": len(state.similar_feedback),
+            "tool_results_included": len(state.tool_results),
             "confidence_level": state.confidence.level if state.confidence else None,
             "time_ms": (time.time() - start) * 1000
         }
