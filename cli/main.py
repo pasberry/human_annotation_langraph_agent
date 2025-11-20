@@ -11,7 +11,7 @@ from rich.syntax import Syntax
 from agent.graph import agent
 from feedback.collector import feedback_collector
 from feedback.processor import feedback_processor
-from storage import db, rag_service
+from storage import commitment_search_service, db, rag_service
 from storage.schemas import Commitment
 
 
@@ -27,22 +27,37 @@ def cli():
 @cli.command()
 @click.argument("asset_uri")
 @click.argument("commitment")
-def decide(asset_uri: str, commitment: str):
+@click.option("--query", is_flag=True, help="Treat commitment as natural language query instead of ID")
+def decide(asset_uri: str, commitment: str, query: bool):
     """
     Make a scoping decision for an asset and commitment.
 
-    Example:
-        cli decide asset://database.customer_data.production "SOC 2 CC6.1"
+    Examples:
+        # By commitment ID/name
+        cli decide database.customer_data.production "Customer Data Usage Policy"
+
+        # By natural language query
+        cli decide database.user_data.ads_training "no user data for ads" --query
     """
     console.print(f"\n[bold]Analyzing asset:[/bold] {asset_uri}")
-    console.print(f"[bold]Commitment:[/bold] {commitment}\n")
+    if query:
+        console.print(f"[bold]Commitment Query:[/bold] \"{commitment}\"")
+        console.print("[dim]Searching for relevant commitments...[/dim]\n")
+    else:
+        console.print(f"[bold]Commitment:[/bold] {commitment}\n")
 
     with console.status("[bold green]Processing...") as status:
         # Run the agent
-        result = agent.run(
-            asset_uri=asset_uri,
-            commitment_id=commitment
-        )
+        if query:
+            result = agent.run(
+                asset_uri=asset_uri,
+                commitment_query=commitment
+            )
+        else:
+            result = agent.run(
+                asset_uri=asset_uri,
+                commitment_id=commitment
+            )
 
     # Check for errors
     if result.errors:
@@ -200,11 +215,18 @@ def add_commitment(name: str, doc_text_file: str, description: str | None, domai
         with console.status("[bold green]Processing commitment for RAG..."):
             chunks = rag_service.process_and_store_commitment(commitment)
 
-        console.print(f"[green]✓[/green] Created {len(chunks)} chunks for RAG\n")
+        console.print(f"[green]✓[/green] Created {len(chunks)} chunks for RAG")
+
+        # Store commitment summary for search
+        with console.status("[bold green]Making commitment searchable..."):
+            commitment_search_service.store_commitment_summary(commitment)
+
+        console.print(f"[green]✓[/green] Commitment summary stored for natural language search\n")
         console.print(Panel(
             f"[bold green]Commitment added successfully![/bold green]\n"
             f"ID: {commitment.id}\n"
-            f"Chunks: {len(chunks)}",
+            f"Chunks: {len(chunks)}\n"
+            f"Searchable: Yes (try using commitment queries)",
             style="green"
         ))
 

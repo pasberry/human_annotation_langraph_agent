@@ -88,7 +88,8 @@ class EvidencingAgent:
     def run(
         self,
         asset_uri: str,
-        commitment_id: str,
+        commitment_id: str | None = None,
+        commitment_query: str | None = None,
         session_id: str | None = None,
         thread_id: str | None = None
     ) -> AgentState:
@@ -96,18 +97,36 @@ class EvidencingAgent:
         Run the evidencing agent to make a scoping decision.
 
         Args:
-            asset_uri: Asset URI in format asset://type.descriptor.domain
-            commitment_id: Commitment ID or name
+            asset_uri: Asset URI (e.g., "database.customer_email.marketing_db")
+            commitment_id: Specific commitment ID or name (use this OR commitment_query)
+            commitment_query: Natural language query for commitments (e.g., "no user data for ads")
             session_id: Optional session ID for tracking
             thread_id: Optional thread ID for checkpointing (defaults to session_id)
 
         Returns:
             Final agent state with decision
+
+        Examples:
+            # Mode 1: Specific commitment
+            agent.run(
+                asset_uri="database.customer_email.orders_db",
+                commitment_id="Customer Data Usage Policy"
+            )
+
+            # Mode 2: Natural language query
+            agent.run(
+                asset_uri="database.user_data.ads_training_db",
+                commitment_query="no user data for ads commitments"
+            )
         """
+        if not commitment_id and not commitment_query:
+            raise ValueError("Must provide either commitment_id or commitment_query")
+
         # Create initial state
         initial_state = AgentState(
             asset_uri=asset_uri,
             commitment_id=commitment_id,
+            commitment_query=commitment_query,
             session_id=session_id or "",
             start_time=time.time()
         )

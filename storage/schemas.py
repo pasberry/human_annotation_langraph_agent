@@ -249,7 +249,8 @@ class AgentState(BaseModel):
 
     # Input
     asset_uri: str
-    commitment_id: str
+    commitment_id: str | None = None  # Optional if using commitment_query
+    commitment_query: str | None = None  # Natural language query for commitments
     commitment_name: str | None = None
     session_id: str = Field(default_factory=lambda: str(uuid4()))
 
@@ -257,7 +258,8 @@ class AgentState(BaseModel):
     asset: AssetURI | None = None
 
     # Commitment data
-    commitment: Commitment | None = None
+    commitment: Commitment | None = None  # Primary commitment (if using ID)
+    related_commitments: list[Commitment] = Field(default_factory=list)  # Multiple commitments from search
 
     # RAG results
     rag_chunks: list[CommitmentChunk] = Field(default_factory=list)

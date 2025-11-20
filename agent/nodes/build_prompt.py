@@ -120,7 +120,16 @@ Your response must be in JSON format following this exact schema:
             user_parts.append(f"**Asset Descriptor**: {state.asset.asset_descriptor}")
             user_parts.append(f"**Asset Domain**: {state.asset.asset_domain}")
         user_parts.append("")
-        user_parts.append(f"**Commitment**: {state.commitment_name}")
+
+        # Show commitment mode
+        if state.commitment_query:
+            user_parts.append(f"**Commitment Query**: \"{state.commitment_query}\"")
+            user_parts.append(f"**Primary Commitment**: {state.commitment.name if state.commitment else 'Unknown'}")
+            if state.related_commitments:
+                user_parts.append(f"**Related Commitments**: {', '.join([c.name for c in state.related_commitments])}")
+        else:
+            user_parts.append(f"**Commitment**: {state.commitment_name}")
+
         user_parts.append("")
         user_parts.append("---")
         user_parts.append("")
@@ -128,8 +137,21 @@ Your response must be in JSON format following this exact schema:
         # Section 1: The Commitment Language
         user_parts.append("## THE COMMITMENT LANGUAGE")
         user_parts.append("")
+
+        # If using query mode, explain which commitments were found
+        if state.commitment_query and (state.commitment or state.related_commitments):
+            user_parts.append(f"**Note**: The following sections were retrieved from {1 + len(state.related_commitments)} commitment(s) matching your query.")
+            user_parts.append("")
+
         if state.commitment and state.commitment.description:
+            user_parts.append(f"**Primary Commitment**: {state.commitment.name}")
             user_parts.append(f"**Purpose**: {state.commitment.description}")
+            user_parts.append("")
+
+        if state.related_commitments:
+            user_parts.append(f"**Related Commitments**:")
+            for rc in state.related_commitments:
+                user_parts.append(f"- **{rc.name}**: {rc.description or 'No description'}")
             user_parts.append("")
 
         if state.rag_chunks:
