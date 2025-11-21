@@ -122,6 +122,7 @@ class TestRetrieveFeedbackNode:
             {
                 "feedback_id": "feedback-1",
                 "asset_uri": "asset://database.test.production",
+                "commitment_id": "test-commitment",
                 "decision": "in-scope",
                 "rating": "down",
                 "human_reason": "Missing PII controls",
@@ -185,10 +186,15 @@ class TestAssessConfidenceNode:
         )
         state.feedback_context = FeedbackContext(
             total_feedback_count=5,
-            retrieved_count=2,
-            avg_similarity=0.875,
+            retrieved_count=3,
+            avg_similarity=0.90,
             frequency_clusters=1
         )
+        state.similar_feedback = [
+            {"decision": "in-scope", "rating": "up"},
+            {"decision": "in-scope", "rating": "up"},
+            {"decision": "in-scope", "rating": "up"}
+        ]
 
         result = assess_confidence_node(state)
 
