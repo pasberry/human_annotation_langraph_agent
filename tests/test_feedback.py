@@ -10,21 +10,24 @@ from storage.schemas import ScopingDecision, DecisionFeedback
 class TestFeedbackCollector:
     """Tests for feedback collector."""
 
+    @patch('storage.vector_store.vector_store')
     @patch('feedback.collector.db')
     @patch('feedback.collector.embedding_service')
-    def test_submit_feedback_thumbs_up(self, mock_embed, mock_db, mock_embedding):
+    def test_submit_feedback_thumbs_up(self, mock_embed, mock_db, mock_vector, mock_embedding):
         """Test submitting thumbs up feedback."""
+        import json
         # Setup mocks
         mock_db.get_scoping_decision.return_value = {
             "id": "decision-1",
             "asset_uri": "asset://database.test.production",
             "commitment_id": "commitment-1",
             "decision": "in-scope",
-            "response": '{"decision": "in-scope", "reasoning": "Test"}'
+            "response": '{"decision": "in-scope", "reasoning": "Test"}',
+            "query_embedding": json.dumps(mock_embedding)
         }
         mock_embed.embed_text.return_value = mock_embedding
 
-        collector = FeedbackCollector()
+        collector = FeedbackCollector(vector_store=mock_vector)
         feedback = collector.submit_feedback(
             decision_id="decision-1",
             rating="up",
@@ -37,20 +40,23 @@ class TestFeedbackCollector:
         assert feedback.human_correction is None
         assert mock_db.add_feedback.called
 
+    @patch('storage.vector_store.vector_store')
     @patch('feedback.collector.db')
     @patch('feedback.collector.embedding_service')
-    def test_submit_feedback_thumbs_down(self, mock_embed, mock_db, mock_embedding):
+    def test_submit_feedback_thumbs_down(self, mock_embed, mock_db, mock_vector, mock_embedding):
         """Test submitting thumbs down feedback with correction."""
+        import json
         mock_db.get_scoping_decision.return_value = {
             "id": "decision-1",
             "asset_uri": "asset://database.test.production",
             "commitment_id": "commitment-1",
             "decision": "in-scope",
-            "response": '{"decision": "in-scope", "reasoning": "Test"}'
+            "response": '{"decision": "in-scope", "reasoning": "Test"}',
+            "query_embedding": json.dumps(mock_embedding)
         }
         mock_embed.embed_text.return_value = mock_embedding
 
-        collector = FeedbackCollector()
+        collector = FeedbackCollector(vector_store=mock_vector)
         feedback = collector.submit_feedback(
             decision_id="decision-1",
             rating="down",
@@ -79,14 +85,16 @@ class TestFeedbackCollector:
 
     @patch('feedback.collector.db')
     @patch('feedback.collector.embedding_service')
-    def test_submit_feedback_missing_correction(self, mock_embed, mock_db):
+    def test_submit_feedback_missing_correction(self, mock_embed, mock_db, mock_embedding):
         """Test that thumbs down requires correction."""
+        import json
         mock_db.get_scoping_decision.return_value = {
             "id": "decision-1",
             "asset_uri": "asset://database.test.production",
             "commitment_id": "commitment-1",
             "decision": "in-scope",
-            "response": '{"decision": "in-scope", "reasoning": "Test"}'
+            "response": '{"decision": "in-scope", "reasoning": "Test"}',
+            "query_embedding": json.dumps(mock_embedding)
         }
 
         collector = FeedbackCollector()
