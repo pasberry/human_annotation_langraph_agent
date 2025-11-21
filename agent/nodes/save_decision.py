@@ -3,7 +3,8 @@ import time
 from datetime import datetime
 
 from storage import db, vector_store
-from storage.schemas import AgentState, ScopingDecision, Telemetry, VectorDocument
+from storage.schemas import AgentState, ScopingDecision, Telemetry
+from storage.vector_store.base import VectorDocument
 
 
 def save_decision_node(state: AgentState) -> AgentState:

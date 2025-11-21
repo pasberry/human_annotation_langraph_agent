@@ -56,7 +56,7 @@ class TestCommitment:
     def test_create_commitment(self, sample_commitment):
         """Test creating a commitment."""
         assert sample_commitment.name == "Test SOC 2 CC6.1"
-        assert sample_commitment.domain == "security"
+        assert sample_commitment.description == "Test commitment for access controls"
         assert "SOC 2" in sample_commitment.doc_text
         assert sample_commitment.id is not None
 

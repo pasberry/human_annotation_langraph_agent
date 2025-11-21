@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 
 from agent.graph import EvidencingAgent, create_evidencing_graph
-from storage.schemas import AgentState, Commitment
+from storage.schemas import AgentState, Commitment, CommitmentChunk
 
 
 class TestEvidencingAgent:
@@ -28,10 +28,20 @@ class TestEvidencingAgent:
     ):
         """Test complete workflow resulting in in-scope decision."""
         # Setup mocks
+        mock_db.get_commitment.return_value = sample_commitment
         mock_db.get_commitment_by_name.return_value = sample_commitment
         mock_embed.embed_text.return_value = mock_embedding
+        # Create chunk
+        chunk = CommitmentChunk(
+            id="chunk-1",
+            commitment_id="test-commitment",
+            chunk_text="Production databases require controls",
+            chunk_embedding=[0.1] * 384,
+            chunk_index=0
+        )
+
         mock_rag.get_commitment_context.return_value = {
-            "chunks": ["Production databases require controls"],
+            "chunks": [chunk],
             "scores": [0.95],
             "avg_similarity": 0.95,
             "top_similarity": 0.95,
@@ -42,6 +52,7 @@ class TestEvidencingAgent:
         # Mock LLM response
         mock_llm = Mock()
         mock_response = Mock()
+        mock_response.usage_metadata = None
         mock_response.content = '''
         {
             "decision": "in-scope",
@@ -69,11 +80,11 @@ class TestEvidencingAgent:
 
         # Verify result
         assert result is not None
-        assert result.response is not None
-        assert result.response.decision == "in-scope"
-        assert result.response.confidence_level == "high"
-        assert result.decision is not None
-        assert len(result.errors) == 0
+        assert result["response"] is not None
+        assert result["response"].decision == "in-scope"
+        assert result["response"].confidence_level == "high"
+        assert result["decision"] is not None
+        assert len(result["errors"]) == 0
 
     @patch('agent.nodes.llm_call.ChatOpenAI')
     @patch('agent.nodes.save_decision.db')
@@ -94,10 +105,21 @@ class TestEvidencingAgent:
     ):
         """Test complete workflow resulting in out-of-scope decision."""
         # Setup mocks
+        mock_db.get_commitment.return_value = sample_commitment
         mock_db.get_commitment_by_name.return_value = sample_commitment
         mock_embed.embed_text.return_value = mock_embedding
+
+        # Create chunk
+        chunk = CommitmentChunk(
+            id="chunk-1",
+            commitment_id="test-commitment",
+            chunk_text="Test environments are excluded from scope",
+            chunk_embedding=[0.1] * 384,
+            chunk_index=0
+        )
+
         mock_rag.get_commitment_context.return_value = {
-            "chunks": ["Test environments are excluded from scope"],
+            "chunks": [chunk],
             "scores": [0.90],
             "avg_similarity": 0.90,
             "top_similarity": 0.90,
@@ -108,6 +130,7 @@ class TestEvidencingAgent:
         # Mock LLM response
         mock_llm = Mock()
         mock_response = Mock()
+        mock_response.usage_metadata = None
         mock_response.content = '''
         {
             "decision": "out-of-scope",
@@ -132,8 +155,8 @@ class TestEvidencingAgent:
         )
 
         # Verify result
-        assert result.response.decision == "out-of-scope"
-        assert result.response.confidence_level == "high"
+        assert result["response"].decision == "out-of-scope"
+        assert result["response"].confidence_level == "high"
 
     @patch('agent.nodes.llm_call.ChatOpenAI')
     @patch('agent.nodes.save_decision.db')
@@ -154,10 +177,21 @@ class TestEvidencingAgent:
     ):
         """Test complete workflow with insufficient data."""
         # Setup mocks with low quality RAG
+        mock_db.get_commitment.return_value = sample_commitment
         mock_db.get_commitment_by_name.return_value = sample_commitment
         mock_embed.embed_text.return_value = mock_embedding
+
+        # Create chunk
+        chunk = CommitmentChunk(
+            id="chunk-1",
+            commitment_id="test-commitment",
+            chunk_text="Some vague text",
+            chunk_embedding=[0.1] * 384,
+            chunk_index=0
+        )
+
         mock_rag.get_commitment_context.return_value = {
-            "chunks": ["Some vague text"],
+            "chunks": [chunk],
             "scores": [0.50],
             "avg_similarity": 0.50,
             "top_similarity": 0.50,
@@ -168,6 +202,7 @@ class TestEvidencingAgent:
         # Mock LLM response
         mock_llm = Mock()
         mock_response = Mock()
+        mock_response.usage_metadata = None
         mock_response.content = '''
         {
             "decision": "insufficient-data",
@@ -189,13 +224,14 @@ class TestEvidencingAgent:
         )
 
         # Verify result
-        assert result.response.decision == "insufficient-data"
-        assert result.response.confidence_level == "insufficient"
-        assert len(result.response.missing_information) > 0
+        assert result["response"].decision == "insufficient-data"
+        assert result["response"].confidence_level == "insufficient"
+        assert len(result["response"].missing_information) > 0
 
     @patch('agent.nodes.retrieve_rag.db')
     def test_workflow_with_missing_commitment(self, mock_db):
         """Test workflow when commitment is not found."""
+        mock_db.get_commitment.return_value = None
         mock_db.get_commitment_by_name.return_value = None
 
         agent = EvidencingAgent()
@@ -205,8 +241,8 @@ class TestEvidencingAgent:
         )
 
         # Should have error about missing commitment
-        assert len(result.errors) > 0
-        assert any("Commitment not found" in error for error in result.errors)
+        assert len(result["errors"]) > 0
+        assert any("Commitment not found" in error for error in result["errors"])
 
     def test_workflow_with_invalid_asset_uri(self):
         """Test workflow with invalid asset URI."""
@@ -217,8 +253,8 @@ class TestEvidencingAgent:
         )
 
         # Should have error about parsing
-        assert len(result.errors) > 0
-        assert any("parsing" in error.lower() for error in result.errors)
+        assert len(result["errors"]) > 0
+        assert any("parsing" in error.lower() for error in result["errors"])
 
 
 class TestCheckpointing:
@@ -243,10 +279,21 @@ class TestCheckpointing:
     ):
         """Test that checkpoints are created during workflow."""
         # Setup mocks
+        mock_db.get_commitment.return_value = sample_commitment
         mock_db.get_commitment_by_name.return_value = sample_commitment
         mock_embed.embed_text.return_value = mock_embedding
+
+        # Create chunk
+        chunk = CommitmentChunk(
+            id="chunk-1",
+            commitment_id="test-commitment",
+            chunk_text="Test",
+            chunk_embedding=[0.1] * 384,
+            chunk_index=0
+        )
+
         mock_rag.get_commitment_context.return_value = {
-            "chunks": ["Test"],
+            "chunks": [chunk],
             "scores": [0.90],
             "avg_similarity": 0.90,
             "top_similarity": 0.90,
@@ -256,6 +303,7 @@ class TestCheckpointing:
 
         mock_llm = Mock()
         mock_response = Mock()
+        mock_response.usage_metadata = None
         mock_response.content = '''
         {
             "decision": "in-scope",
@@ -301,10 +349,21 @@ class TestCheckpointing:
     ):
         """Test getting current state for a thread."""
         # Setup mocks
+        mock_db.get_commitment.return_value = sample_commitment
         mock_db.get_commitment_by_name.return_value = sample_commitment
         mock_embed.embed_text.return_value = mock_embedding
+
+        # Create chunk
+        chunk = CommitmentChunk(
+            id="chunk-1",
+            commitment_id="test-commitment",
+            chunk_text="Test",
+            chunk_embedding=[0.1] * 384,
+            chunk_index=0
+        )
+
         mock_rag.get_commitment_context.return_value = {
-            "chunks": ["Test"],
+            "chunks": [chunk],
             "scores": [0.90],
             "avg_similarity": 0.90,
             "top_similarity": 0.90,
@@ -314,6 +373,7 @@ class TestCheckpointing:
 
         mock_llm = Mock()
         mock_response = Mock()
+        mock_response.usage_metadata = None
         mock_response.content = '''
         {
             "decision": "in-scope",

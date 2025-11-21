@@ -68,8 +68,8 @@ def assess_confidence_node(state: AgentState) -> AgentState:
         agreement_score = 0.0
         if state.similar_feedback:
             # Check if feedback is aligned (all same decision) or conflicting
-            decisions = [f.agent_decision for f in state.similar_feedback]
-            ratings = [f.rating for f in state.similar_feedback]
+            decisions = [f["decision"] for f in state.similar_feedback]
+            ratings = [f["rating"] for f in state.similar_feedback]
 
             # All same decision = aligned
             if len(set(decisions)) == 1:

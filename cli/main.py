@@ -59,18 +59,18 @@ def decide(asset_uri: str, commitment: str, query: bool):
             )
 
     # Check for errors
-    if result.errors:
-        console.print("[bold red]Errors occurred:[/bold]")
-        for error in result.errors:
+    if result["errors"]:
+        console.print("[bold red]Errors occurred:[/bold red]")
+        for error in result["errors"]:
             console.print(f"  - {error}")
         return
 
-    if not result.response:
+    if not result["response"]:
         console.print("[bold red]No response generated[/bold]")
         return
 
     # Display decision
-    response = result.response
+    response = result["response"]
 
     if response.decision == "insufficient-data":
         console.print(Panel(
@@ -140,9 +140,9 @@ def decide(asset_uri: str, commitment: str, query: bool):
             console.print()
 
     # Decision ID for feedback
-    console.print(f"[dim]Decision ID: {result.decision.id}[/dim]")
-    console.print(f"[dim]Session ID (Thread ID): {result.session_id}[/dim]")
-    console.print(f"[dim]💾 View checkpoints: cli checkpoint-history {result.session_id}[/dim]\n")
+    console.print(f"[dim]Decision ID: {result['decision'].id}[/dim]")
+    console.print(f"[dim]Session ID (Thread ID): {result['session_id']}[/dim]")
+    console.print(f"[dim]💾 View checkpoints: cli checkpoint-history {result['session_id']}[/dim]\n")
 
 
 @cli.command()
@@ -191,16 +191,16 @@ def list_commitments():
 
     table = Table(title="Commitments")
     table.add_column("Name", style="cyan")
-    table.add_column("Domain", style="magenta")
     table.add_column("Description", style="green")
     table.add_column("ID", style="dim")
+    table.add_column("Created", style="yellow")
 
     for c in commitments:
         table.add_row(
             c.name,
-            c.domain or "-",
             (c.description[:50] + "...") if c.description and len(c.description) > 50 else (c.description or "-"),
-            c.id[:8]
+            c.id[:8],
+            c.created_at.strftime("%Y-%m-%d")
         )
 
     console.print(table)

@@ -44,8 +44,7 @@ def sample_commitment():
 
         IN-SCOPE: Production systems, databases with customer data, authentication systems
         OUT-OF-SCOPE: Test environments, development systems, public data
-        """,
-        domain="security"
+        """
     )
 
 

@@ -58,11 +58,18 @@ class TestRetrieveRAGNode:
     @patch('agent.nodes.retrieve_rag.embedding_service')
     def test_retrieve_rag_success(self, mock_embed, mock_rag, mock_db, sample_commitment, mock_embedding):
         """Test successful RAG retrieval."""
+        # Create mock chunks
+        mock_chunk1 = Mock()
+        mock_chunk1.id = "chunk-1"
+        mock_chunk2 = Mock()
+        mock_chunk2.id = "chunk-2"
+
         # Setup mocks
+        mock_db.get_commitment.return_value = sample_commitment
         mock_db.get_commitment_by_name.return_value = sample_commitment
         mock_embed.embed_text.return_value = mock_embedding
         mock_rag.get_commitment_context.return_value = {
-            "chunks": ["Test chunk 1", "Test chunk 2"],
+            "chunks": [mock_chunk1, mock_chunk2],
             "scores": [0.95, 0.85],
             "avg_similarity": 0.90,
             "top_similarity": 0.95,
@@ -79,13 +86,14 @@ class TestRetrieveRAGNode:
 
         assert result.commitment is not None
         assert result.rag_context is not None
-        assert len(result.rag_context.chunks) == 2
-        assert result.rag_context.avg_similarity == 0.90
-        assert "retrieve_rag" in result.telemetry_data
+        assert result.rag_context.chunks_retrieved == 2
+        assert result.rag_context.avg_similarity == pytest.approx(0.90)
+        assert "rag_retrieval" in result.telemetry_data
 
     @patch('agent.nodes.retrieve_rag.db')
     def test_retrieve_rag_commitment_not_found(self, mock_db):
         """Test RAG retrieval when commitment is not found."""
+        mock_db.get_commitment.return_value = None
         mock_db.get_commitment_by_name.return_value = None
 
         state = AgentState(
@@ -104,21 +112,23 @@ class TestRetrieveRAGNode:
 class TestRetrieveFeedbackNode:
     """Tests for retrieve_feedback_node."""
 
+    @patch('agent.nodes.retrieve_feedback.db')
     @patch('agent.nodes.retrieve_feedback.feedback_processor')
-    @patch('agent.nodes.retrieve_feedback.embedding_service')
-    def test_retrieve_feedback_with_results(self, mock_embed, mock_feedback, mock_embedding, sample_commitment):
+    def test_retrieve_feedback_with_results(self, mock_feedback, mock_db, sample_commitment, mock_embedding):
         """Test feedback retrieval with results."""
         # Setup mocks
-        mock_embed.embed_text.return_value = mock_embedding
+        mock_db.list_feedback.return_value = ["feedback-1", "feedback-2"]  # Non-zero count
         mock_feedback.retrieve_similar_feedback.return_value = [
             {
                 "feedback_id": "feedback-1",
                 "asset_uri": "asset://database.test.production",
+                "commitment_id": "test-commitment",
                 "decision": "in-scope",
                 "rating": "down",
                 "human_reason": "Missing PII controls",
                 "similarity": 0.92,
-                "frequency_weight": 1.2
+                "frequency_weight": 1.2,
+                "cluster_size": 1
             }
         ]
 
@@ -128,19 +138,20 @@ class TestRetrieveFeedbackNode:
         )
         state.asset = AssetURI.from_uri(state.asset_uri)
         state.commitment = sample_commitment
+        state.query_embedding = mock_embedding
 
         result = retrieve_feedback_node(state)
 
         assert result.feedback_context is not None
-        assert len(result.feedback_context.similar_feedback) == 1
-        assert result.feedback_context.similar_feedback[0]["rating"] == "down"
-        assert "retrieve_feedback" in result.telemetry_data
+        assert len(result.similar_feedback) == 1
+        assert result.similar_feedback[0]["rating"] == "down"
+        assert "feedback_retrieval" in result.telemetry_data
 
+    @patch('agent.nodes.retrieve_feedback.db')
     @patch('agent.nodes.retrieve_feedback.feedback_processor')
-    @patch('agent.nodes.retrieve_feedback.embedding_service')
-    def test_retrieve_feedback_no_results(self, mock_embed, mock_feedback, mock_embedding, sample_commitment):
+    def test_retrieve_feedback_no_results(self, mock_feedback, mock_db, sample_commitment, mock_embedding):
         """Test feedback retrieval with no results."""
-        mock_embed.embed_text.return_value = mock_embedding
+        mock_db.list_feedback.return_value = []  # Zero count
         mock_feedback.retrieve_similar_feedback.return_value = []
 
         state = AgentState(
@@ -149,11 +160,12 @@ class TestRetrieveFeedbackNode:
         )
         state.asset = AssetURI.from_uri(state.asset_uri)
         state.commitment = sample_commitment
+        state.query_embedding = mock_embedding
 
         result = retrieve_feedback_node(state)
 
         assert result.feedback_context is not None
-        assert len(result.feedback_context.similar_feedback) == 0
+        assert result.feedback_context.total_feedback_count == 0
 
 
 class TestAssessConfidenceNode:
@@ -167,18 +179,22 @@ class TestAssessConfidenceNode:
         )
         state.commitment = sample_commitment
         state.rag_context = RAGContext(
-            chunks=["chunk1", "chunk2"],
-            chunk_scores=[0.95, 0.90],
+            chunks_retrieved=2,
+            chunk_ids=["chunk-1", "chunk-2"],
             avg_similarity=0.925,
-            top_similarity=0.95,
-            num_chunks=2
+            top_similarity=0.95
         )
         state.feedback_context = FeedbackContext(
-            similar_feedback=[
-                {"rating": "up", "similarity": 0.90},
-                {"rating": "up", "similarity": 0.85}
-            ]
+            total_feedback_count=5,
+            retrieved_count=3,
+            avg_similarity=0.90,
+            frequency_clusters=1
         )
+        state.similar_feedback = [
+            {"decision": "in-scope", "rating": "up"},
+            {"decision": "in-scope", "rating": "up"},
+            {"decision": "in-scope", "rating": "up"}
+        ]
 
         result = assess_confidence_node(state)
 
@@ -194,14 +210,16 @@ class TestAssessConfidenceNode:
         )
         state.commitment = sample_commitment
         state.rag_context = RAGContext(
-            chunks=["chunk1"],
-            chunk_scores=[0.60],
+            chunks_retrieved=1,
+            chunk_ids=["chunk-1"],
             avg_similarity=0.60,
-            top_similarity=0.60,
-            num_chunks=1
+            top_similarity=0.60
         )
         state.feedback_context = FeedbackContext(
-            similar_feedback=[]
+            total_feedback_count=0,
+            retrieved_count=0,
+            avg_similarity=0.0,
+            frequency_clusters=0
         )
 
         result = assess_confidence_node(state)
@@ -215,36 +233,47 @@ class TestBuildPromptNode:
 
     def test_build_prompt_with_rag_and_feedback(self, sample_commitment):
         """Test building prompt with RAG and feedback context."""
+        # Create mock chunk
+        mock_chunk = Mock()
+        mock_chunk.id = "chunk-1"
+        mock_chunk.chunk_text = "Production databases require controls"
+
         state = AgentState(
             asset_uri="asset://database.customer_data.production",
             commitment_id="test-commitment"
         )
         state.asset = AssetURI.from_uri(state.asset_uri)
         state.commitment = sample_commitment
+        state.rag_chunks = [mock_chunk]
         state.rag_context = RAGContext(
-            chunks=["Production databases require controls"],
-            chunk_scores=[0.95],
+            chunks_retrieved=1,
+            chunk_ids=["chunk-1"],
             avg_similarity=0.95,
-            top_similarity=0.95,
-            num_chunks=1
+            top_similarity=0.95
         )
+        state.similar_feedback = [
+            {"asset_uri": "asset://database.test.production", "decision": "in-scope", "rating": "up"}
+        ]
         state.feedback_context = FeedbackContext(
-            similar_feedback=[
-                {"asset_uri": "asset://database.test.production", "decision": "in-scope", "rating": "up"}
-            ]
+            total_feedback_count=5,
+            retrieved_count=1,
+            avg_similarity=0.88,
+            frequency_clusters=1
         )
         state.confidence = ConfidenceAssessment(
             score=0.85,
             level="high",
-            factors={"rag_quality": 0.38}
+            factors={"rag_quality": 0.38},
+            reasoning="High quality RAG chunks and feedback"
         )
 
         result = build_prompt_node(state)
 
-        assert result.prompt is not None
-        assert "customer_data" in result.prompt
-        assert "database" in result.prompt
-        assert "build_prompt" in result.telemetry_data
+        assert result.telemetry_data.get("prompts") is not None
+        assert "user" in result.telemetry_data["prompts"]
+        assert "system" in result.telemetry_data["prompts"]
+        assert "customer_data" in result.telemetry_data["prompts"]["user"]
+        assert "prompt_construction" in result.telemetry_data
 
     def test_build_prompt_minimal_context(self, sample_commitment):
         """Test building prompt with minimal context."""
@@ -257,12 +286,13 @@ class TestBuildPromptNode:
         state.confidence = ConfidenceAssessment(
             score=0.50,
             level="insufficient",
-            factors={}
+            factors={},
+            reasoning="Insufficient data"
         )
 
         result = build_prompt_node(state)
 
-        assert result.prompt is not None
+        assert result.telemetry_data.get("prompts") is not None
 
 
 class TestLLMCallNode:
@@ -283,8 +313,11 @@ class TestLLMCallNode:
             commitment_id="test-commitment"
         )
         state.commitment = sample_commitment
-        state.prompt = "Test prompt"
-        state.confidence = ConfidenceAssessment(score=0.85, level="high", factors={})
+        state.confidence = ConfidenceAssessment(score=0.85, level="high", factors={}, reasoning="Test")
+        state.telemetry_data["prompts"] = {
+            "system": "Test system prompt",
+            "user": "Test user prompt"
+        }
 
         result = llm_call_node(state)
 
@@ -304,8 +337,11 @@ class TestLLMCallNode:
             commitment_id="test-commitment"
         )
         state.commitment = sample_commitment
-        state.prompt = "Test prompt"
-        state.confidence = ConfidenceAssessment(score=0.85, level="high", factors={})
+        state.confidence = ConfidenceAssessment(score=0.85, level="high", factors={}, reasoning="Test")
+        state.telemetry_data["prompts"] = {
+            "system": "Test system prompt",
+            "user": "Test user prompt"
+        }
 
         result = llm_call_node(state)
 
