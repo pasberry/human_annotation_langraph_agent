@@ -27,7 +27,7 @@ class CommitmentIngestionService:
     def __init__(self):
         """Initialize with LLM for description generation."""
         self.llm = ChatOpenAI(
-            model=settings.llm_model_name,
+            model=settings.llm_model,
             temperature=0.0  # Deterministic descriptions
         )
 

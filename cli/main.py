@@ -191,16 +191,16 @@ def list_commitments():
 
     table = Table(title="Commitments")
     table.add_column("Name", style="cyan")
-    table.add_column("Domain", style="magenta")
     table.add_column("Description", style="green")
     table.add_column("ID", style="dim")
+    table.add_column("Created", style="yellow")
 
     for c in commitments:
         table.add_row(
             c.name,
-            c.domain or "-",
             (c.description[:50] + "...") if c.description and len(c.description) > 50 else (c.description or "-"),
-            c.id[:8]
+            c.id[:8],
+            c.created_at.strftime("%Y-%m-%d")
         )
 
     console.print(table)
