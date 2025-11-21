@@ -263,15 +263,17 @@ class TestBuildPromptNode:
         state.confidence = ConfidenceAssessment(
             score=0.85,
             level="high",
-            factors={"rag_quality": 0.38}
+            factors={"rag_quality": 0.38},
+            reasoning="High quality RAG chunks and feedback"
         )
 
         result = build_prompt_node(state)
 
-        assert result.prompt is not None
-        assert "customer_data" in result.prompt
-        assert "database" in result.prompt
-        assert "build_prompt" in result.telemetry_data
+        assert result.telemetry_data.get("prompts") is not None
+        assert "user" in result.telemetry_data["prompts"]
+        assert "system" in result.telemetry_data["prompts"]
+        assert "customer_data" in result.telemetry_data["prompts"]["user"]
+        assert "prompt_construction" in result.telemetry_data
 
     def test_build_prompt_minimal_context(self, sample_commitment):
         """Test building prompt with minimal context."""
@@ -284,12 +286,13 @@ class TestBuildPromptNode:
         state.confidence = ConfidenceAssessment(
             score=0.50,
             level="insufficient",
-            factors={}
+            factors={},
+            reasoning="Insufficient data"
         )
 
         result = build_prompt_node(state)
 
-        assert result.prompt is not None
+        assert result.telemetry_data.get("prompts") is not None
 
 
 class TestLLMCallNode:
@@ -310,8 +313,11 @@ class TestLLMCallNode:
             commitment_id="test-commitment"
         )
         state.commitment = sample_commitment
-        state.prompt = "Test prompt"
-        state.confidence = ConfidenceAssessment(score=0.85, level="high", factors={})
+        state.confidence = ConfidenceAssessment(score=0.85, level="high", factors={}, reasoning="Test")
+        state.telemetry_data["prompts"] = {
+            "system": "Test system prompt",
+            "user": "Test user prompt"
+        }
 
         result = llm_call_node(state)
 
@@ -331,8 +337,11 @@ class TestLLMCallNode:
             commitment_id="test-commitment"
         )
         state.commitment = sample_commitment
-        state.prompt = "Test prompt"
-        state.confidence = ConfidenceAssessment(score=0.85, level="high", factors={})
+        state.confidence = ConfidenceAssessment(score=0.85, level="high", factors={}, reasoning="Test")
+        state.telemetry_data["prompts"] = {
+            "system": "Test system prompt",
+            "user": "Test user prompt"
+        }
 
         result = llm_call_node(state)
 
